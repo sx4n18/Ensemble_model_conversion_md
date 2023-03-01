@@ -1682,7 +1682,7 @@ Input current was modeled as the delta function:
 Memebrane potential has been more linear:
 ![The membrane potential shows strong linearity than before](img/membrane_voltage_of_IF_Curr_delta.png)
 
-⚠️ Also noticed that I cannot set the refrac time as 0 when the simulation timestep is 0.1, this will cause the neuron to stay in refractory period forever.
+⚠️ Also noticed that I cannot set the refrac time as 0 when the simulation timestep is 0.1, this will cause the neuron to stay in refractory period forever. Membrane potential stay at 0. But could work at some cases.
 
 But this is totally doable when the timestep is 1
 
@@ -1690,3 +1690,23 @@ Will have to avoid using timestep=0.1, since I could not make the v update when 
 
 Best behaviour and simulation setting is timestep set as 1, and tau_m set as 2000.
 
+Now I am actually curious to see why this happen. If this is an issue that only happens with v1.6.0.1. Will now try this out in v1.6.0.0.
+
+After verification, I found out that this is not an issue at v1.6.0.0. So potentially, this is another bug with the new spynnaker package.
+
+Now the flow will just be:
+
+Training on my Mac using tensorflow or pytorch --> Export the parameters and converted implementation --> Simulation on Linux
+
+Also I noticed that when timestep was set to 1, the input current with different weights are bringing the same impact to the membrane potential. (specifically at neuron 1 and 2, green and amber):
+
+![Membrane potential looking odd with apparently different weighted input](./img/membrane_potential_issue_at_timestep_1.png)
+
+It could be seen that at least the input current has been shown as different in 0.2 and 0.3 in terms of the intensity:
+![Input current showing that the weights have been correctly assigned](./img/corresponding_delta_input_current_at_timestep_1.png)
+
+So I will have to stick to the simulation timestep at 0.1, and so far this could only be run on my linux machine.
+
+Correction: it turns out SpiNNaker just hate some settings, timestep=0.1 and refrac=0, tau_m=2000, cm=200, works on both my Mac and Linux.
+
+So I will probably stick with this setting.
