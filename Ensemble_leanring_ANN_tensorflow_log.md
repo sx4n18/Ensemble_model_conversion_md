@@ -1635,7 +1635,58 @@ Negative input offset current -50 nA:
 Positive input offset current 50 nA:
 ![Positive input offset current 50 nA](./img/positive_offset_current_linear_looking_27_Feb.png)
 
+Will start off with simple ANN implementation like a 3 layer ANN for mnist dataset.
 
+Got the simple ANN in the folder and saved.
 
+summary below:
 
+```text
+Model: "sequential"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ flatten (Flatten)           (None, 784)               0         
+                                                                 
+ dense (Dense)               (None, 50)                39250     
+                                                                 
+ dense_1 (Dense)             (None, 10)                510       
+                                                                 
+=================================================================
+Total params: 39,760
+Trainable params: 39,760
+Non-trainable params: 0
+_________________________________________________________________
+```
+![Result of this 3 layer ANN on MNIST](img/simple_ANN_3_layer_MNIST_28_Feb.png)
+
+## 28 Feb
+
+Will now attempt this conversion. 
+
+But it seems the use of neuron model IF_curr_exp somehow does not show a strong linear behaviour. Where the input current, even as "tau_syn_E" was set 1, the input current shape is still quite exponential. And it won't match too well with the membrane potential.
+
+![Input current shape not strongly linear](img/If_curr_exp_current_shape_with_tau_syn_E_1.png)
+
+![The membrane potential shape and updates with the settings](img/If_curr_exp_v_shape_with_the_setting.png)
+
+## 1 Mar
+
+After the meeting with Ed, I was enlightened that I should probably use IF_curr_delta where the input current was shaped in delta function. 
+
+And yes, this modeling offers much higher linearity for the model behaviour.
+
+Input current was modeled as the delta function:
+![The input current were modeled as the delta function](img/delta_input_current_shape.png)
+
+Memebrane potential has been more linear:
+![The membrane potential shows strong linearity than before](img/membrane_voltage_of_IF_Curr_delta.png)
+
+⚠️ Also noticed that I cannot set the refrac time as 0 when the simulation timestep is 0.1, this will cause the neuron to stay in refractory period forever.
+
+But this is totally doable when the timestep is 1
+
+Will have to avoid using timestep=0.1, since I could not make the v update when ts=0.1 with no matter what setting tau_refrac is.
+
+Best behaviour and simulation setting is timestep set as 1, and tau_m set as 2000.
 
