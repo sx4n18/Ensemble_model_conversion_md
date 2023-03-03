@@ -1710,3 +1710,39 @@ So I will have to stick to the simulation timestep at 0.1, and so far this could
 Correction: it turns out SpiNNaker just hate some settings, timestep=0.1 and refrac=0, tau_m=2000, cm=200, works on both my Mac and Linux.
 
 So I will probably stick with this setting.
+
+
+## 2 Mar
+
+Did a simple test on the weight assignment and reimplement on SpiNNaker, it appears there's no spikes coming out. 
+
+Observing the activation in the hidden layer, it could be noticed that there are some similarities on the pattern of the activation of the hidden layer and membrane potential of the hidden layer.
+
+![Comparison of the activation and membrane potential](img/side_by_side_comparison_of_the_activation_andmembrane_potential.png)
+
+It could be seen there are some similarities between these two, but the issue with it is the part the should be zero is not zero in the membrane potential. The contrast of the memebrane potential is not big enough.
+
+While I was checking closely to the code I drafted previously for the conversion algorithm.
+
+I found that I have not been updating the previous_factor, which stayed as 1 the whole time?
+![original pseudo code](img/original_piece_of_algorithm.jpeg)
+![my implementation](img/no_update_for_previous_factor_may_lead_to_failure_of_normalisation.png)
+
+Also It seems the original pseudo code made a mistake(is it ?) by updating previous_factor with scale_factor instead of applied_factor as indicated in their code.
+
+![their original implementation in matlab](img/inconsistency_with_their_pseudocode.png)
+Will also check closely for the model based normalisation (even though not used often).
+
+Appears that the model based weight normalisation is ok.
+
+Will update my implementation with scale_factor for now.
+
+Noticed an interesting thing with the final layer's membrane potential, with the i_offset, it seems all the neurons will increase its potential at the same rate, the difference is simply just how long this increase will last. So in a sense, this amount of increase is proportional to the actual bias. And this does not agree with what I had in mind how the offset current would do
+
+But still, there are some issues to be sorted out.
+
+
+
+
+
+
