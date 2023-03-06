@@ -1741,6 +1741,31 @@ Noticed an interesting thing with the final layer's membrane potential, with the
 
 But still, there are some issues to be sorted out.
 
+## 3 Mar
+
+Because I tried the SpiNNaker but it is not giving me the right prediction. Considering the old project was using the software based LIF simulaiton. I thought I could do the same.
+
+Wrote up my own class of LIF spiking layer and also poisson layer. Meanwhile I have also added them together into the network class.
+
+This has not yet included the supoort for biases.
+
+
+## 4 Mar
+
+I wrote a simple script to verify the previously converted weights from ANN. A simple 3 layer SNN was loaded with the newly drafted class.
+
+Again, biases are still being ignored for now.
+
+I simply tried the first 20 samples with the LIF implementation without biases. My implementation got 19 correct.
+
+Kinda proves that the converted weights were working.
+
+## 5 Mar
+
+Did some further verificaiton and it seems the accuracy so far is still ok.
+
+Tried 50 samples where we had 48 correct.
+
 
 
 
