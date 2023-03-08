@@ -1797,4 +1797,9 @@ It should be more like this:
 In terms of the offset current, I am not sure if it is the issue with new spinnaker package, so I will run this simple implementation on Linux the old package to verify the current behaviour.
 
 
+So I have just run the same script on the old package on linux, and it seems that this may be an issue that exists both on the new and old package?
+
+Will send an email to ask Ed about this and see his experience on this topic.
+
+
 
