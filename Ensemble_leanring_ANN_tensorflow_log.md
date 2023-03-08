@@ -1767,7 +1767,34 @@ Did some further verificaiton and it seems the accuracy so far is still ok.
 Tried 50 samples where we had 48 correct.
 
 
+## 6 Mar
 
+Verified the implementation on SpiNNaker with larger input intensity (1000Hz), even though there are still not many spikes coming out of the final layer, the overall trend observed has been more positive than last week.
+
+One simple test on the sample
+![Final output layer membrane potential tested on sample 9284](img/output_layer_membrane_potential_test_on_simple_ANN_6_mar_2023.png)
+
+Sample 9284 number 2:
+![Sample 9284 looking like in mnist dataset](img/mnist_sample_looking_like_9284_6_Mar.png)
+
+The side by side comparison of the spike activity and ANN activation:
+![The side by side comparison of the hidden layer spike and ANN activation](img/side_by_side_comparison_for_the_activation_and_hidden_layer_spikes_6_Mar.png)
+
+I still do not know how exactly the offset current works. It seems odd to me.
+
+It looks that it is doable, but I need to figure out why the offset current is behaving oddly.
+
+![Example where the the offset current has made the evaluation wrong](img/overall_the_off_set_current_is_making_strong_influence_when_there_is_not_many_spikes.png)
+
+It could be seen that neuron number 8 has an advantage becuase of the offeset current. The final layer would do better without the current cus the neuron number 2(the correct class) would totally make it if not for current boost. And from my understanding, the current should give increase or decrease at every single timestep instead of this where it will just bring a certain amout of potential change and stop. And according to the hidden layer's spike activity, there's no spike to the final layer before 200 ms.
+
+It should be more like this:
+![A more mathematically plausible v t plot under different current](img/the_more_mathematically_plausible_v_t_plot_with_different_current.jpeg)
+
+
+## 8 Mar
+
+In terms of the offset current, I am not sure if it is the issue with new spinnaker package, so I will run this simple implementation on Linux the old package to verify the current behaviour.
 
 
 
