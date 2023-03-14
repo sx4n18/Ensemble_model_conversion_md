@@ -1801,5 +1801,61 @@ So I have just run the same script on the old package on linux, and it seems tha
 
 Will send an email to ask Ed about this and see his experience on this topic.
 
+Will try to add the offset current into my class defined implementation.
+
+Also just tried to use the implementation on testing data, it seems it has gone wild. Somehow the accuracy dropped significantly.
+
+It seems that I could still make it work with the normalised weight on training datasets without biases by adjusting the threshold to 0.1
+
+Yes, I am being silly by checking the output of the net's inference on the testing dataset agains training label. So of course the accuracy would be low.
+
+After fixing this issue, yes, it shows that the network is working just fine with the normalised weights.
+
+
+## 9 Mar
+
+Fixed a small issue I found in my class that lies in the function propogate, I wrote = instead of + where it was intended.
+
+This seems to have brought extra accuracy. 
+
+Added one time step latency between each layer with a simple buffer. Seems it does not bring any drop on accuracy.
+
+Since for ANN, biases is only like a one-off calculation during inference, I assume during the whole sample inferencing, the total increase towards the membrane potential should simply just be the value of the bias. Therefore, I divide the converted biases by total calculaiton steps and added one portion at each time step.
+
+It seems it brings a slight increase towards the network.
+
+Will verify the test dataset again, to see the best possible accuracy I am achieving here.
+
+In total, the accuracy is 96.4%, by comparison, the ANN offers 97.12% accuracy.
+
+## 12 Mar
+
+Aim here is to convert and simulate the network based on the ANN ensemble that was trained on the positive log_plus_1_subtraction_data.
+
+But I reliased that the data that the ANN was trained on was not normalised, they are distributed in the range of \[0, 10.19\], this is just the first ANN's input range. So apparently I could not find a universal way to normalise every dataset.
+
+## 13 Mar
+
+Did the conversion of the network anyway, but still, I have not entirely ironed out the input source issue.
+
+Converted weights were saved in the folder ensemble_model_imp/saved_model_w/ as in pke pickle files.
+
+
+## 14 Mar
+
+Ran a very simple verification on the first ANN network, which takes the data of the first diagonal, even though this issue was not entirely addressed, the inferencing on the first 1000 samples still seem promising with the accuracy of 94.6%
+
+Now I shuffled the dataset, so I could test every possible label 0-17 to see how the network is. I am doubtful about the performance of the network. This is too optimistic.
+
+Surprisingly, the accuracy is 85.1%, probably not too far off from the actuall ANN.
+And my network verifying 1000 testing samples only took around 2 mins with each sample lasting 1 seconds of running.
+
+Now I am verifying the whole testing set to see the overall accuracy difference between these two.
+
+After verifying this thoroughly, I got the accuracy from SNN as 84.37%, the corresponding ANN is 89.7%, there's around 5% accuracy loss here. 
+
+I will need to observe in detail how many spikes were generated at the input. 
+
+
 
 
