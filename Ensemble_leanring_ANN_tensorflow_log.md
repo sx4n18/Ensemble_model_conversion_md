@@ -54,7 +54,7 @@ Will try 1 cycle schedule and see what is the best learning rate
 
 ## 1 June
 
-Have tried the 1 cycle schedule to try to find the best learning rate, however, it seems that it stil did not solve the problem with 
+Have tried the 1 cycle schedule to try to find the best learning rate, however, it seems that it still did not solve the problem with 
 
 high loss and not converging. And also after checking, most of the weight has been reduced to almost 0 (really low value). 
 
@@ -75,7 +75,7 @@ If this does not work, then I will start writing my own preprocessing stage inst
 Or I will export the mat data to csv.
 
 
-**Update: Rewrtiting the model and cut off the input flatten layer helped with the training process, now thinking probably the l2 reugularization rate of 0.01 might be too high.** 
+**Update: Rewriting the model and cut off the input flatten layer helped with the training process, now thinking probably the l2 reugularization rate of 0.01 might be too high.** 
 
 
 --------------------------------------------------------------------
@@ -150,7 +150,7 @@ training and test from 21% to 14%, seems there should be improvment that could b
 
 It seems the previous model with the l2 rete at 0.001 did a better job with the performance.
 
-It could also be concluded that hte validation accuracy would match the test accuracy in most cases.
+It could also be concluded that the validation accuracy would match the test accuracy in most cases.
 
 --------------------------------------------------------------------
 Evaluation result form the previous model:
@@ -569,7 +569,7 @@ def marjor_softvote(all_diagona_prediction):
 
 At the same time, the original majorvote function has been renamed as `def major_hardvote(all_diagonal_prediction):`
 
-Considering using logrithmic preproceesing now. So that the bin-ratio could be converted into minus.
+Considering using logarithmic preproceesing now. So that the bin-ratio could be converted into minus.
 
 log(h2/h1) = log(h2) - log(h1)
 
@@ -1856,6 +1856,262 @@ After verifying this thoroughly, I got the accuracy from SNN as 84.37%, the corr
 
 I will need to observe in detail how many spikes were generated at the input. 
 
+
+## 15 Mar
+
+Simulation options:
+```python
+sim_opt = {"time_step": 0.001,
+           "duration": 1,
+           "max_rate": 100
+           }
+```
+
+After observing the simulation closely, I noticed that the input spike counts are basically 100 times the original input data value:
+
+```text
+e.g:
+
+6.84801 -->  666 spikes (expecting 685 spikes)
+0.92853 -->  85  spikes (expecting 93  spikes)
+```
+But because the precision was lost (could be seen apparently) during this process, the results are not as accurate as intended.
+
+The generation process goes like:
+
+```text
+---------------------------------------------------------------------
+                      Poisson spikes generation:
+---------------------------------------------------------------------
+
+rate              <-         input_rate 
+scale_factor      <-        max_possible_rate/max_rate
+random_num        <-        rng.next(0,1)\*scale_factor
+spike             <-        if (random_num < rate)
+```
+
+In our case where the input rate ranges from [0, 10.19], the random number generated ranges 
+
+from (0, 1)\*(1000/100) --> (0,10).
+
+This gives a more or less good fit to the original rate. This means we are generating random numbers in the range of (0,10) and compare it to input range [0,10.19], this would somehow give the input rate that satisfy the maxium possible rate = 1000.
+
+We would have big issue if the input rate range is bigger or smaller than this.
+
+Alternative ways of generating spikes needed.
+
+Another thing I noticed is that random number generation is not actually random, it is more pseudorandom. Cus clearly there's a period where of the input spikes.
+
+But overall I am pleased with how this is working.
+
+Probably if I need to make this work, 6 spikes could not be a good enough to represent the input data.
+
+
+To keep the precision, probably the best I could do is to either divide the input rate by 100 so that the range will be [0, 0.1019] or [0, 0.17] at the worst case and set max_rate = 1000. This should give us the input spikes from [0, 102].
+
+Or
+
+I multiply the input rate by 100 so that the range will be [0, 101.9] and take the literal input number as the absolute rate. This needs some modification of the code.
+
+Will try the first solution now cus it's easier.
+
+By doing this, we are getting the overall accuracy of 68.15%, so apparently, we are not getting enough spikes from input.
+
+By comparison this approach offers a different expected spike rate:
+
+```text
+e.g:
+
+6.84801 -->  77 spikes (expecting 68 spikes)
+0.92853 -->  8  spikes (expecting 9  spikes) 
+```
+
+I could change the simulation threshold to give us more spikes in the hidden layer. But I doubt about the accuracy.
+
+Input range [0, 102]:
+
+max_rate = 1000 Hz
+
+Changed threshold to 0.5, and the accuracy is: 80%
+
+Changed threshold to 0.25, and the accuracy is: 80.29%
+
+Changed threshold to 0.1, and the accuracy is: 79.11%
+
+I don't think there's any more point to drop threshold.
+
+
+## 29 Mar
+
+Started exploring Arduino board as it could run tensorflow-lite model on it. This could be a benchmarking implementation for our SNN model.
+
+Tried its example for its hello world example where it tried to implement a simple ANN to inference the sine wave function and use that value to dim the light.
+
+Over the example, it could be noticed that the process for the inferencing on edge device is basically the same as using the tflite interpreter:
+
+Initialise the tensorflow-lite and load the tflite model --> 
+
+Check the model version (add op resolver) and instantiate interpreter -->
+
+Allocate memory (arena) get input and output tensor -->
+
+Set tensor for the input -->
+
+Invoke and read the output tensor -->
+
+Output handling
+
+Have converted my simple 3 layer ANN model for handwritten digits into .cc file and included into the Arduino sketch. Now I just have to figure out how to send in the data.
+
+Meanwhile, I have also tried to add the peripherals like LCD screen and camera. But it has been a bit bumpy along the road.
+
+Will try to add the simple ANN for handwritten digits first.
+
+Figured probably the simplest way so far is to send in information through UART export the information on LCD screen.
+
+And I need to figure out how to send in floating numbers like 10.17
+
+## 30 Mar
+
+successfully merged the LCD with my neural network sketch. But had error at the stage of tensor dimension check:
+
+```text
+Bad input tensor parameters in model
+3
+1
+28
+28
+1
+```
+
+First number represent the input dimension which is 3, or straightly (1,28,28).
+
+Last number represents the input data type. It is Float32 here as defined in the tflite cpp file.
+
+```c++
+typedef enum {
+  kTfLiteNoType = 0,
+  kTfLiteFloat32 = 1,
+  kTfLiteInt32 = 2,
+  kTfLiteUInt8 = 3,
+  kTfLiteInt64 = 4,
+  kTfLiteString = 5,
+  kTfLiteBool = 6,
+  kTfLiteInt16 = 7,
+  kTfLiteComplex64 = 8,
+  kTfLiteInt8 = 9,
+  kTfLiteFloat16 = 10,
+  kTfLiteFloat64 = 11,
+  kTfLiteComplex128 = 12,
+  kTfLiteUInt64 = 13,
+  kTfLiteResource = 14,
+  kTfLiteVariant = 15,
+  kTfLiteUInt32 = 16,
+  kTfLiteUInt16 = 17,
+  kTfLiteInt4 = 18,
+} TfLiteType;
+```
+Will find ways to do this tflite conversion. This link is a good example:
+[How to make tflite model take int8 input](https://stackoverflow.com/questions/66551794/tflite-cant-quantize-the-input-and-output-of-tensorflow-model-to-int8)
+
+Used this method and tried to convert the model into lite model that takes in int8 for input.
+
+## 31 Mar
+
+Have converted my model into the form where it takes in the int8 as input.
+
+Will now convert it into cpp and added into the board.
+
+Somehow with the input from terminal, the network is not responding or stuck at the data collection stage.
+
+Will find a more granular way to send over chunky data like 784 piece of floating point.
+
+## 1 Apr
+
+Wrote my python script to send over information through UART with my laptop and display on LCD. But it turns out that python might be too fast to dump all the information for Arduino board to do the preprocessing. So there is a big data loss with the script and the Arduino board.
+
+Could probably convert the number into integer and load them directly into the board. This may be faster.
+
+But the communication between laptop and Arduino is established.
+
+![I have already sent 784 data from python](img/data_loss_by_UART.jpg)
+
+Given that there's no data loss(I inserted sleep time between each serial packet which resulted in a really slow process), the inferencing is actually correct!
+
+Now just have to optimise the data transfer.
+
+So It turns out driving LCD screen might be the actual bottleneck, I tried to not display every received number and only update the display every 100 samples, and it is working fine. Will try to see how fast I could go.
+
+Wonder if increasing the baudrate would actually speed up the inferencing. Will try this later.
+
+Optimisation: dropped the tensor Arena size from 6000 to  2500, turns out we do not need that much space for the interpreter.
+
+At the same time, I tried to do all the 30 samples in one go, it could be really fast, but if I run all samples continuously, there would be wrong inferencing. However, if I run each sample individually, all 30 samples will pass with no errors.
+This could be the improvement that could be done with a better data transmission interface. UART would sometimes send wrong data it seems.
+
+But overall, the tensorflow lite implementation proves to be feasible, and it could be a good application if we have some better co-processing or data transmission peripherals. Could probably try to measure the power consumption of this platform as a good benchmarking.
+
+Next step, I will transfer ensemble ANN over.
+
+## 3 Apr
+
+I simply added one more line to the original imp on Arduino to send the inference result back to the laptop. And the issue that happens during batch running was solved.
+
+So Yeah, it seems that the scripts run much faster than the board, so that there needs to be "handshake", i.e. information exchange to stay synced.
+```text
+ ______          __________
+|   A  |        |          |
+|   R  |------->|     P    |
+|   D  |        |          |
+|   U  |<-------|          |
+|   I  |        |          |
+|   N  |        |     C    |
+|   O  |        |          |
+|______|        |__________|
+```
+Honestly I do not want to work today, feeling sooo tired.
+
+Could probably think how to speed up the software based SNN simulation and raise the query on SpiNNaker user group.
+
+
+## 6 Apr
+
+Will now move over to the bin-ratio tensorflow-lite implementation. Since logarithmic calculation is more expensive than division, I will simply just implement the original ensemble rewrite into the board. But probably the issue is the memory size.
+
+Since right now it's just 20 individual ANNS for the same task, can I add another layer just for the summary work to give each network different weights on the final decision making?
+
+## 7 Apr
+
+Tried the keras API where layers could be concatenated by using:
+
+```python
+keras.layers.concatenate([model1.layer, model2.layer])
+```
+
+However, this may not work with subclssing defined keras model. Will try to convert them into sequential or functional defined keras model.
+
+My conversion seems simple where I recreate a same network using sequential API, load them with the variables from the old network by using
+
+```python
+new_model.build(input_shape)
+new_model.set_weights(weight_variable)
+new_model.compile(loss=New_loss, optimizer=New_optim, metrics=New_metrics)
+```
+And then the new model is ready to use.
+
+
+All I have to do at the concatenation is:
+
+```python
+
+keras.layers.concatenate([new_model_1.output, new_model_2.output])
+```
+
+training results shows that adding one extra layer could not give better results.
+
+![training shows great tendency for overfitting](./img/one_extra_ensemble_layer_not_helping.png)
+
+Compared to the original simple method where we could get 97.26% accuracy, adding another layer does nothing but making it more complicated than it should be.
 
 
 
