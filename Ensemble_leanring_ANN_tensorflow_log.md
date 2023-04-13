@@ -2114,4 +2114,122 @@ training results shows that adding one extra layer could not give better results
 Compared to the original simple method where we could get 97.26% accuracy, adding another layer does nothing but making it more complicated than it should be.
 
 
+## 10 Apr
 
+Now since the implementation of 20 networks may be way too big to hold in the arduino board. Probably some experiments on how many networks we need could be done.
+
+Will try to run the same inference but make change to numbers of nets we have in the whole implementation and see how good each selection is. A range and bar plot is needed here.
+
+Found a useful package to generate all possible combinations from a list called itertools.
+
+```python
+for iterable in itertools.combinations(range(20), number_of_element):
+```
+
+each iterable will be a tuple of size \[number_of_element\]
+
+The plot could be seen here:
+![The number of nets and accuracy](./img/distribution_of_number_of_net_and_accuracy_10_Apr.png)
+
+Zoomed in view of the nets and accuracy from number 4 to 20:
+![Zoomed in view of the number of nets and accuracy](./img/Zoom_in_over_10_to_20_accuracy.png)
+
+It could be seen that with the increase of the numebr of nets, the stability is higher, but the average of accuracy does not increase as much. Meanwhile, the lower bound for the overall accuracy also increases.
+
+
+## 11 Apr
+
+Since the subclassing models are problematic, I could save all the network into simple h5 files.
+
+This will be done automatically.
+
+Everything was saved inside the Ensemble_CP/HDF5/ folder
+
+Probably I could replace the bin-ratio operation with neural network?
+
+
+## 12 Apr
+
+probably could find the best combo when the number of nets are 5, 7, 8
+
+Why these numbers?
+
+5 may be the biggest number of nets to be fit into Arduino.
+
+7/8 are probably the smallest number to have the high accuracy of somewhere near 98%
+
+And as for the number of 5, the top few accuracy goes as:
+
+```text
+There are  19 different combos
+[0.9385185185185185, 0.9392592592592592, 0.9474074074074074, 0.9496296296296296, 0.9503703703703704, 0.9555555555555556, 0.9562962962962963, 0.9577777777777777, 0.9585185185185185, 0.9592592592592593, 0.9629629629629629, 0.9637037037037037, 0.9644444444444444, 0.965925925925926, 0.9666666666666667, 0.9696296296296296, 0.9711111111111111, 0.9718518518518519, 0.9740740740740741]
+[(0, 1, 2, 3, 4), (0, 1, 2, 3, 7), (0, 1, 2, 3, 9), (0, 1, 2, 3, 10), (0, 1, 2, 4, 9), (0, 1, 2, 4, 15), (0, 1, 2, 4, 17), (0, 1, 2, 5, 17), (0, 1, 2, 9, 15), (0, 1, 2, 9, 17), (0, 1, 2, 10, 17), (0, 1, 4, 5, 18), (0, 1, 4, 9, 17), (0, 1, 4, 15, 18), (0, 1, 5, 10, 17), (0, 1, 5, 15, 18), (0, 1, 9, 15, 17), (0, 1, 9, 15, 18), (0, 2, 10, 16, 17)]
+```
+
+As for the number of 7, the top few accuracy is:
+
+```text
+There are  19 different combos
+[0.9540740740740741, 0.9555555555555556, 0.9562962962962963, 0.9592592592592593, 0.9607407407407408, 0.9622222222222222, 0.9629629629629629, 0.9644444444444444, 0.9666666666666667, 0.9681481481481482, 0.9688888888888889, 0.9696296296296296, 0.9703703703703703, 0.9718518518518519, 0.9733333333333334, 0.9740740740740741, 0.9748148148148148, 0.9762962962962963, 0.9777777777777777]
+[(0, 1, 2, 3, 4, 5, 6), (0, 1, 2, 3, 4, 5, 8), (0, 1, 2, 3, 4, 5, 9), (0, 1, 2, 3, 4, 5, 10), (0, 1, 2, 3, 4, 5, 15), (0, 1, 2, 3, 4, 5, 17), (0, 1, 2, 3, 4, 6, 9), (0, 1, 2, 3, 4, 6, 17), (0, 1, 2, 3, 4, 9, 17), (0, 1, 2, 3, 4, 10, 17), (0, 1, 2, 3, 4, 11, 17), (0, 1, 2, 3, 9, 13, 15), (0, 1, 2, 3, 10, 15, 17), (0, 1, 2, 3, 13, 15, 17), (0, 1, 2, 5, 10, 15, 17), (0, 1, 2, 6, 10, 13, 17), (0, 1, 2, 6, 10, 15, 17), (0, 1, 2, 8, 10, 15, 17), (0, 1, 6, 10, 15, 17, 19)]
+```
+
+As for number of 8, the top accuracy and combos are:
+
+```text
+There are  17 different combos
+[0.9548148148148148, 0.9622222222222222, 0.9629629629629629, 0.9674074074074074, 0.9681481481481482, 0.9688888888888889, 0.9696296296296296, 0.9718518518518519, 0.9725925925925926, 0.9733333333333334, 0.9740740740740741, 0.9755555555555555, 0.9762962962962963, 0.977037037037037, 0.9777777777777777, 0.9785185185185186, 0.9792592592592593]
+[(0, 1, 2, 3, 4, 5, 6, 7), (0, 1, 2, 3, 4, 5, 6, 9), (0, 1, 2, 3, 4, 5, 6, 16), (0, 1, 2, 3, 4, 5, 6, 17), (0, 1, 2, 3, 4, 5, 10, 17), (0, 1, 2, 3, 4, 5, 12, 17), (0, 1, 2, 3, 4, 5, 15, 17), (0, 1, 2, 3, 4, 8, 15, 17), (0, 1, 2, 3, 6, 10, 15, 17), (0, 1, 2, 3, 13, 15, 17, 18), (0, 1, 2, 4, 5, 15, 17, 18), (0, 1, 2, 4, 6, 10, 13, 17), (0, 1, 2, 4, 6, 10, 15, 17), (0, 1, 2, 9, 10, 17, 18, 19), (0, 1, 2, 10, 16, 17, 18, 19), (0, 2, 4, 9, 10, 11, 15, 17), (0, 2, 10, 13, 16, 17, 18, 19)]
+```
+
+It could be observed that the good combination normally has network 10,17,19. Will prove this point by make another bin count graph.
+
+
+## 13 Apr
+
+After the exploration, I want to build the tflite model and concat the input and output.
+
+### Option A
+I could either build a concatenated layer of the five networks input and same for the output and rebuild the model,
+
+```python
+concat_input_layer = keras.layer.concatenate([layer1, layer2, layer3])
+```
+
+### Option B
+or I could use the simple definition keras.Model(inputs=\[layer1, layer2, layer3\], outputs=\[layer4, layer5, layer6\])
+
+### Issues with option A
+
+Find that if I use the first approach,  I would run into the error 
+
+```text
+ValueError: Found input tensor cannot be reached given provided output tensors. Please make sure the tensor KerasTensor(type_spec=TensorSpec(shape=(None, 1023), dtype=tf.float32, name='dense_input'), name='dense_input', description="created by layer 'dense_input'") is included in the model inputs when building functional model.
+```
+So I will try to use the other approach to simply concatenate the layer in the model definition.
+
+### Issues with option B
+
+But if I use the other approach, I will run into another error that has issue with the representative dataset generator.
+
+Realised that I did not define the input layer during my subclassing to sequential model conversion, this would most likely cause the issue I am having right now. Will probably fix this later today.
+
+Tried to define the input layer in the sequential model, but still, this does not make any difference. Since I actually defined the input shape in the original implementation by using build function.
+
+### Solution
+
+Find a way to merge the network into one with some simple statements. 
+
+[How to merge multiple networks into one keras](https://stackoverflow.com/questions/47265412/custom-connections-between-layers-keras)
+
+This helped a lot, and I could simplify the quantisation process as well with less trouble to worry about genrator.
+
+This is the merged network with 5 nets inside
+
+![The merged network HDF5](./img/whittled_net_5_h5_13_Apr.png)
+
+This is the quantised network with 5 nets inside, it actually looks a bit like CNN to some extent.
+
+![The quantised merged tflite network](./img/whittled_ensemble_5_tflite_13_Apr.png)
+
+Could wrap up for today.
