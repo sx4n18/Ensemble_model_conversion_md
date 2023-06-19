@@ -752,7 +752,7 @@ Will try to train the network with the logarithmic preprocess datsets.
 
 Considering do the simple log process first:
 
-$$y_{post} = ln (y_pre) $$
+$$y_{post} = ln (y_{pre}) $$
 
 Since the preprocess might have to deal with the case where the input is 0, which would lead to the log preprocess to give -Inf.
 
@@ -2222,7 +2222,7 @@ Find a way to merge the network into one with some simple statements.
 
 [How to merge multiple networks into one keras](https://stackoverflow.com/questions/47265412/custom-connections-between-layers-keras)
 
-This helped a lot, and I could simplify the quantisation process as well with less trouble to worry about genrator.
+This helped a lot, and I could simplify the quantisation process as well with less trouble to worry about generator.
 
 This is the merged network with 5 nets inside
 
@@ -2232,4 +2232,656 @@ This is the quantised network with 5 nets inside, it actually looks a bit like C
 
 ![The quantised merged tflite network](./img/whittled_ensemble_5_tflite_13_Apr.png)
 
+Meanwhile, the network of 5 tflite only has the size of 217 KB, this might be a good size to fit into the tiny Arduino.
+
 Could wrap up for today.
+
+
+## 14 Apr
+
+Converted the 5 network ensemble model into cc files, it shows that the network has the footprint of 217368, which is about 217 KB.
+
+In the meantime, I find that the example provided in the tflite library shows that the CNN model actually takes about 300568, which is about 301 KB.
+
+So theoretically, I could fit in more networks into the board.
+
+At the same time, I was reminded about the pruning idea to make the network even smaller. This also happens to be compatible with post-training quantization, so this is a good idea to do.
+
+Will check this today.
+
+## 16 Apr
+
+I could probably also apply the feature selection technique to the input to drop a significant amount of inputs and connections.
+
+
+## 17 Apr
+
+I could send in the integers into the Arduino and do the bin ratio inside the board. Which should not be a big computation overhead.
+
+But before sending this tflite model inside the Arduino, I would like to verify the accuracy of the model first using tensorflow interpreter.
+
+While i was verifying the network, I had serious issue with input quantisation. It seems that If I have all the numbers here converted to int8 numbers by the input tensor's quantisation parameters. I would push all the numbers to negative. The input layer has a really ridiculous quantisation parameters combo. (665.2470703125, -128). This does not seem right, I must have made some kind of mistake with the quantisation stage.
+
+After simple verification, I found that the concated network itself may be wrong, the verified accuracy with one big network does not perform as good as 97% but 18%. This is not right.
+
+Wait I should probably do a split at the end of the prediction, and use the old hard_major_vote.
+
+### Correction: I should not simply use the big model and evaluate to do the accuracy checking. When I use the prediction and then major hardvote, I could get the results I wanted. Still 97.4%
+
+So the quantisation might be the step where issue is.
+
+
+Will now try to save the model without quantisation just by default and see how the accuracy will go.
+
+Yes, when I just use the normal tflite without quantisation, the network gives me 0.96% accuracy.
+
+So there must be something that was missing during quantisation. But it does not give full integer quantisation. 
+
+Tried integer quantisation again, now it gives me 33.78%.
+
+Quantisation is wrong, it seems.
+
+
+## 18 Apr
+
+Could see that in the original dataset, the range is ridiculously big [0, 265870], this would inevitably lead to the fact that during quantisation, all the information will be lost if we want to compress that to [-127, 128]
+
+### Happen to find that Arduino board supports log computation. This could be helpful! Otherwise, I will have to find my own implementation of logarithmic.
+
+Hardware implementation of logarithmic, possible route:
+
++ Taylor expansion
++ CORDIC implementation (it is an IP in Vivado)
++ Padé approximation 
++ Piecewise linear approximation (LUT)
+
+Some useful references for log implementation:
+
++ [A new hardware implementation of Log on FPGA from 2015](https://www.researchgate.net/profile/Ahmed-Mansour-14/publication/290140679_A_New_Hardware_Implementation_of_Base_2_Logarithm_for_FPGA/links/5732e53608ae9ace8404a4f3/A-New-Hardware-Implementation-of-Base-2-Logarithm-for-FPGA.pdf?_sg%5B0%5D=started_experiment_milestone&origin=journalDetail)
++ [Piece wise linear approximation](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=5608540)
+
+Will try to do some simple implementation or calculation of the log calculation on Arduino to see if it works, if it does, then my plan next will be convert the log(1+x) and subtracted model into the board. We don't have the big range for this implementation, so quantisation should be able to be done.
+
+
+## 19 Apr
+
+Have tried simple implementation of logarithmic computation on Arduino board, it seems that log could work!
+
+Will now try to do the same process for log-implemented ensemble and see how much accuracy we would have.
+
+Somehow, the converted sequential models from subclassing model only yields accuracy of 92.3%. This is not what I was expecting.
+
+Now rerun my old script to see how it actually does.
+
+According to my log, it could give 98% of accuracy.
+
+Tried to rerun the code, yes, it produces 98.67% accuracy.
+
+I think it might be that the call back did not properly save the model, the inference stage used the latest model, while I do not really know which model was saved by the call back.
+
+Will physically make the model save right before the prediction. Now we should have the same model as the one used to generate confusion matrix.
+
+Still produces the same error.
+
+Now trying to do the prediction with original subclassing model and converted model.
+
+It seems that the original model is working perfectly, while converted model was giving dropped accuracy. So it must be the conversion process that was wrong.
+
+
+Realised that my conversion function `sub_cls_to_sequential` will build ANNs with sigmoid activation function instead of Relu which was used in the original implementation.
+
+Will fix this now!
+
+This issue has been fixed! Now I have the model that gives off 98.81% of accuracy.
+
+Now verify the net of 5, 7 and 8 to see how much accuracy we could get out of 5 nets.
+
+For a nets of 5, it will give the following accuracy:
+```text
+There are  20 different combos
+[0.965925925925926, 0.9703703703703703, 0.9711111111111111, 0.9740740740740741, 0.9755555555555555, 0.977037037037037, 0.9785185185185186, 0.9792592592592593, 0.9807407407407407, 0.9814814814814815, 0.9822222222222222, 0.9829629629629629, 0.9837037037037037, 0.9851851851851852, 0.9859259259259259, 0.9866666666666667, 0.9874074074074074, 0.9888888888888889, 0.9896296296296296, 0.9903703703703703]
+[(0, 1, 2, 3, 4), (0, 1, 2, 3, 5), (0, 1, 2, 3, 8), (0, 1, 2, 3, 9), (0, 1, 2, 5, 7), (0, 1, 2, 5, 9), (0, 1, 2, 5, 17), (0, 1, 2, 10, 19), (0, 1, 2, 17, 19), (0, 1, 4, 13, 17), (0, 1, 5, 7, 13), (0, 1, 5, 11, 12), (0, 1, 5, 11, 16), (0, 1, 8, 10, 11), (0, 3, 5, 10, 18), (0, 3, 5, 11, 15), (0, 3, 5, 12, 17), (0, 5, 12, 17, 19), (1, 9, 14, 18, 19), (5, 8, 11, 17, 19)]
+```
+
+For a net of 7, it will give the following accuracy:
+
+```text
+[0.9762962962962963, 0.9777777777777777, 0.9785185185185186, 0.98, 0.9807407407407407, 0.9814814814814815, 0.9822222222222222, 0.9829629629629629, 0.9837037037037037, 0.9844444444444445, 0.9851851851851852, 0.9859259259259259, 0.9866666666666667, 0.9881481481481481, 0.9888888888888889, 0.9896296296296296, 0.9903703703703703, 0.9911111111111112, 0.9918518518518519]
+[(0, 1, 2, 3, 4, 5, 6), (0, 1, 2, 3, 4, 5, 7), (0, 1, 2, 3, 4, 5, 8), (0, 1, 2, 3, 4, 5, 9), (0, 1, 2, 3, 4, 9, 11), (0, 1, 2, 3, 4, 9, 12), (0, 1, 2, 3, 5, 8, 15), (0, 1, 2, 3, 5, 9, 11), (0, 1, 2, 3, 6, 15, 19), (0, 1, 2, 3, 8, 10, 15), (0, 1, 2, 5, 9, 11, 12), (0, 1, 2, 5, 9, 11, 16), (0, 1, 2, 9, 17, 18, 19), (0, 1, 2, 11, 12, 15, 19), (0, 1, 3, 11, 12, 16, 19), (0, 1, 3, 11, 12, 17, 19), (0, 3, 5, 8, 11, 17, 19), (0, 3, 5, 11, 12, 17, 19), (0, 5, 11, 12, 15, 17, 19)]
+```
+
+For a net of 8, it will give the following accuracy:
+
+```text
+[0.9785185185185186, 0.98, 0.9822222222222222, 0.9829629629629629, 0.9837037037037037, 0.9844444444444445, 0.9851851851851852, 0.9859259259259259, 0.9866666666666667, 0.9874074074074074, 0.9881481481481481, 0.9888888888888889, 0.9896296296296296, 0.9903703703703703, 0.9911111111111112, 0.9918518518518519]
+[(0, 1, 2, 3, 4, 5, 6, 7), (0, 1, 2, 3, 4, 5, 6, 9), (0, 1, 2, 3, 4, 5, 7, 9), (0, 1, 2, 3, 4, 5, 7, 11), (0, 1, 2, 3, 4, 5, 9, 10), (0, 1, 2, 3, 4, 5, 10, 17), (0, 1, 2, 3, 4, 12, 17, 19), (0, 1, 2, 3, 5, 8, 10, 17), (0, 1, 2, 3, 5, 10, 12, 16), (0, 1, 2, 3, 5, 10, 15, 17), (0, 1, 2, 3, 11, 12, 15, 17), (0, 1, 2, 5, 8, 10, 11, 17), (0, 1, 2, 11, 12, 14, 15, 19), (0, 1, 3, 5, 8, 12, 17, 19), (0, 1, 3, 5, 12, 14, 15, 17), (1, 5, 11, 12, 14, 15, 17, 19)]
+```
+As for the combination of 5, now the best combo is (5, 8, 11, 17, 19)
+
+Before anything, this is the corresponding accuracy on individual net and overall accuracy.
+
+Now trying the combination of random chosen 5 networks and the accuracy
+[0.9674074074074074, 0.9740740740740741, 0.977037037037037, 0.98, 0.977037037037037]
+0.9903703703703703
+
+Seems with the help of other nets, the overall accuracy could be boosted up by 1-2 %
+
+Now that the input has been compressed into the range to a very small range compared to before, we could successfully quantise the network. And the quantised network tflite still retains the good accuracy of 98.52% !!! And the size of the tflite model is still just 216KB.
+
+This is really promising for the implementation of Arduino!!!
+
+## 20 Apr
+
+### Arduino implementation
+
+Today I will try to implement the network on Arduino, model has been converted and translated. 
+
+The first point is to pull in only the needed and necessary operators into the implementation since our model itself is big enough, we need to save some space.
+
+It will look something like this
+
+```c++
+  static tflite::MicroMutableOpResolver<5> micro_op_resolver;
+  micro_op_resolver.AddAveragePool2D();
+  micro_op_resolver.AddConv2D();
+  micro_op_resolver.AddDepthwiseConv2D();
+  micro_op_resolver.AddReshape();
+  micro_op_resolver.AddSoftmax();
+```
+
+In my past implementation, we could pull in all the operators with statement like this:
+
+```c++
+  static tflite::AllOpsResolver resolver;
+```
+
+By observation using netron app for this tflite model, I think I may need these operators:
+
+```c++
+AddStridedSlice()
+AddSoftmax()
+AddFullyConnected()
+AddRelu()
+AddQuantize()
+AddConcatenation()
+```
+
+After compilation, I found that the usage of RAM is 70%, I am a bit worried it might overflow during computation. Need to compress the usage of defined variables. 
+
+### Drop unnecessary variables and do optimisation
+
+Also I just learnt that I could use the function F() to make the printing function print directly from flash ROM. So we'd save some RAM space.
+
+Serial.println(F("What is going on?")) <-- Serial.println("What is going on?")
+
+If we do not use F(), the string will be taken as a variable and saved in the RAM, which is a waste of space since we never need to change them.
+
+### Reduce the Tensor Arena size until it complains
+
+Drop the TensorArena size to see how low we could go.
+
+136 * 1024 was used originally. will test the limit of the space it needs, apparently this is the part that is taking most of the RAM.
+
+I have dropped the size to 60 * 1024 and it still stands. This means I could probably continue cutting the TensorArena size. But I will first verify if the network works carrying out any further optimisation.
+
+Current RAM usage: 108144 bytes -> 108 KB that is 41% of the whole board.
+
+Now I will need to develop the input and output handler for the neural network on it.
+
+### memcpy is an effective function to copy array content to the other
+
+```c++
+void memcpy(destination, source, size_to_copy);
+```
+Here destination is the targeted array to copy over, source is where we are copying from, size_to_copy is how much of the source we are copying from.
+
+
+## 21 Apr
+
+Created a simple function to do the parameterized oled control.
+
+Meanwhile, I split the input and output handler in different header. So the whole project is more structural.
+
+Comment on the function memcpy: it will take in two pointers as destination, and source, but the point is to make sure the size_to_copy is a constant.
+
+You could not get the size of an array just by using sizeof(ptr), when ptr points to the beginning of the array. This will return the size of the ptr instead.
+
+I have written everything in the sketch, loaded model into Arduino. But when I am doing the testing, I found out that the final inference has always been the same results with 4 nets giving label 17 and one net giving label 0. This does not feel right.
+
+Have tested all the functions in output handler and they are all behaving correctly, so I think there might be some issue with the input. Therefore, I am rewriting the code to drop out the processing for logarithmic computation and subtraction, make the network receive the preprocessed data and see how it will behave.
+
+Now that the data sent in is already preprocessed this time, it shows that the inferencing is correct!
+
+Will have to check what went wrong.
+
+Have done some experiment to check the logarithmic process, so far, it seems the logarithmic computation is valid.
+
+After removing memcpy from the statement, I could get at least correct bin-ratioed data for one net.
+
+This is some improvement.
+
+It proves that the function's logic is correct, just need to avoid returning array or a pointer to an array. This has been changed to the function below to fill in the array instead of doing memcpy.
+
+```c
+void bin_ratio_subtraction(unsigned int length_of_list, uint8_t num_of_net, double* preprocessed_value_lst, double* subtracted_list)
+```
+
+After fixing all these and removing the memcpy, think it finally worked.
+
+## 24 Apr
+
+Today I will try to remove the OLED and speed up the test process as quick as I can, get all the testing samples tested.
+
+Hopefully it will give me 98% accuracy.
+
+Just did some version control to back up my sketch on GitHub. 
+
+Now there are 3 branches:
+
+```text
+------ main
+  |___ demo_oriented
+  |___ validation
+```
+
+demo_oriented will be more inclined for demo therefore, the sketch will be built for more vivid display on OLED to show how the inference is.
+
+validation will be more for overall validation, checking accuracy and such. Therefore, it will be more for size compression and performance.
+
+main is main.
+
+✅ First, I will try to compress the tensorArena till I could not. 
+
+Finally got the allocation fail error after I drop the size down to 10 * 1024.
+
+```text
+Failed to resize buffer. Requested: 10144, available 6464, missing: 3680
+AllocateTensors() failed
+```
+Now increase the size by 1 KB each time to see how much it needs.
+
+11KB: failed
+
+12KB: failed
+
+13KB: failed
+
+14KB: Successful
+
+Conclusion: minimum tensor arena needed for this model is 14KB.
+
+✅ Coming next, I will need to automate the testing. 
+
+Apparently, python script will run much faster than the Arduino board.
+
+Could probably raise the UART baud rate to increase the data transferring speed.
+
+Yes, after commenting off all the unnecessary display related clause, the test looks ok.
+
+✅ Raise the baud rate
+
+Now it is 9600, will gradually raise it to see how far it could go.
+
+Before that, I will drop the sleep time after each data transmission.
+
+From 0.001 to 0.0001. No, it could not keep up.
+
+Testing for 0.0005: it worked!
+
+Testing for 0.0004: it worked!
+
+Testing for 0.0003: it worked!
+
+Testing for 0.0002: it worked!
+
+The sleep time will stay at 0.0002 for now.
+
+Now raise the baud rate:
+
+Will record the time elapsed during these 10 samples:
+
+9600:
+
+Overall time lapse: 3.7 seconds
+
+19200:
+
+Overall time lapse: 3.6 seconds
+
+31250:
+
+Overall time lapse: 3.7 seconds
+
+38400:
+
+Overall time lapse: 3.6 seconds
+
+It could be seen that the inferencing time during this period is not strongly related to the baudrate. Even baud rate of 9600 would suffice.
+
+Therefore, I will use 19200 to do the batch test for 1350 samples. Estimated time is 8 mins for the run.
+
+Kicking it off now....
+
+Will check it in around 8 mins.
+
+After a quick loo session, the test was finished.
+
+We have a great accuracy of 98.52%!
+This is exciting!
+
+```text
+Overall accuracy: 98.51851851851852 %
+Overall time lapse: 5.2e+02 seconds
+```
+
+Since I have no display with me now, I will maintain the demo_oriented branch later to have better UI on OLED.
+
+But from the conclusion made from last experiment, the tensor arena size should be changed to 14KB to save the space.
+
+Guess what comes should be power measurement, will think about this and see how this can be done for Arduino board.
+
+Should I probably implement more nets in this ensemble model to see where the limits are?
+
+### Could move on to hardware implementation now.
+
+Searching for dynamic range compression could be a good start.
+
+## 27 Apr
+
+Today, I started revisiting the paper published by Ed's colleague where he talked about the quantisation frame work for spiking neural networks. In this work, he employed an approach to use learned step quantisation (LSQ), proposed by IBM research team, which basically trained the network while including the step size for quantisation as part of the parameters to update during back propagation.
+
+I found a GitHub repo that implemented the LSQ, this is really helpful.
+
+```text
+👁️  👁️
+  👄
+```
+[Unofficial GitHub repository of LSQ](https://github.com/hustzxd/LSQuantization)
+
+Now let's read this code.
+
+[Another better version](https://github.com/zhutmost/lsq-net.git)
+
+
+## 3 May
+
+Realised that I need to probably handle negative values in the input of the ensemble if I simply just map the ANN over, and the range of the original value might range between.
+
+In the original paper, they used a learning rate scheduler I have not seen before. It is called cosine annealing LR scheduler. It basically would oscillate between the max and min learning rate in a cosine form.
+
+![The Cosine annealing LR scheduler](./img/consineAnnealingLR.webp)
+
+
+Another cool idea of using knowledge distillation was also applied in this work where they trained the quantised network together with a full precision trained network using LSQ to boost the accuracy.
+
+![Knowledge distillation simplified](./img/knowledge_distillation_teacher_and_student.webp)
+
+
+## 22 May
+
+Ok I feel terrible I have not been working for the last few weeks. 
+
+I will start by looking at the energy measurement on the FPGA. Saw that TI PMBus could be used to do measurement.
+
+Here's one link to the explanation of the application.
+
+[One document from Bristol uni](https://www.bristol.ac.uk/media-library/sites/engineering/research/migrated/documents/control.pdf)
+
+
+## 24 May
+
+Was asked how many MACs would be needed for the networks during the meeting, which I have not thought about before.
+
+Will have to find it out in the Tensorflow.
+
+Found a link here that might help, which explained that the equivalent of counting is basically to 
+count the flops using tf.profiler.
+
+[Tensorflow profiler to check the flops](https://itecnote.com/tecnote/tensorflow-how-to-count-multiply-adds-operations/)
+
+Also found an answer that explains this problem, where it says normally dense layers just contain the same number of MACs as the weights
+
+![The possible answer for count of MACs, also explained CNN](./img/possible_answer_for_the_question.png)
+
+
+## 29 May
+
+Found this piece of code on GitHub where LSQ and LSQplus were integrated into the project.
+
+[A helpful git repo](https://github.com/ZouJiu1/LSQplus) 
+
+Copilot, the legendary tool to help me coding. I feel so dumb, it is actually doing a really great job in completing my code piece.
+
+With the help from the GitHub repository, I managed to implement the network and trained the 3 layer ANN using learned step size quantisation. And also achieved w4a4 accuracy on the network with even higher accuracy?
+
+![Is this true, or is this just dreaming?](./img/LSQquant_network_on_ANN)
+
+
+## 31 May
+
+Will now dig deep in what has just been achieved from the implementation and see if I could make it 
+work with the actual quantised values.
+
+Had a simple observation on the wights and quantisation parameters and realised that it is actually doing a good job describing the weights and limit them within a certain range. It could lock the weights within the range of \[-9,7\] without clamping. Guess when we do the actual implementation, we need to the clamping to be in place. Since normally for the b bits quantisation, the scales should be ranged from:
+
++ Non-all positive quantisation: \[- 2^(b-1), 2^(b-1)-1 \] i.e. \[-8, 7\]
++ All positive quantisation:\[0,2^(b-1)-1 \] i.e. \[0, 15 \]
+
+
+## 7 June
+
+Feel I need to take the log preprocessed data and then compress the range within \[0,1\], and do a training and see what will happen. This has not been done yet.
+
+A normalised input is one of the key for conversion. Since in our case, there will be 20 networks, I suppose it is acceptable that each network has its own scaling factor. During the actual FPGA implementation, each input dimension has to be dealt with individually. All we need is the final answer from each network.
+
+Since we also need to do quantization for fast SNN inferencing, I will reimplement the whole ensemble in PyTorch.
+
+I managed to reimplement the model, but now I will just have to let it run and see how much accuracy I will get out of the system.
+
+By comparison, I will also implement a tensorflow version, since I am not sure if the pytorch version will be as good as tensorflow, it seems it converges slower and gives less accuracy than expected.
+
+I have kicked off the running of the pytorch reimplementation and I will observe the final accuracy.
+
+It shows that the final accuracy is not as high as expected and the inter-boosting did not occur as much.
+
+![The not so successful pytorch implementation](./img/reimp_on_pytorch_with_log_1_norm.png)
+
+The Final accuracy of the training only gives 92.33% with most nets giving accuracy of around 90%.
+
+I will use the un-normed data to do the training again and see how that goes.
+
+
+## 8 June
+
+I tried again with the original log data but only relu it for the same network this time, it is apparently achieving less accuracy than my previous keras implementation which gives 98.5%.
+
+The PyTorch implementation only gives me 92.5%. Which makes me feel I should use keras for implementation and transfer the keras model to PyTorch for LSQ.
+
+![Tried to see why the training was not as successful](./img/reimplementation_on_pytorch_for_log_1_relu.png)
+
+### ⚠️ Just realised that I did not minus 1 for the label to be used for training. So the label ranges from \[1, 18\] instead of \[0, 17\], which is unfair.
+
+Will change this in the PyTorch implementation again and see how the accuracy will change.
+
+The training results proved my thoughts with the final accuracy of 98%, will now try the normed data for training again. It should not be too far off from this accuracy.
+
+![Find the issue with my implementation, tried to rerun the training](./img/unnormed_log_1_data_trained.png)
+
+Yes, just as expected it is not too far off from the last accuracy, it is slightly lower with the accuracy of 97.5%. 
+
+![Tried again with the input data normalised](./img/normed_log_1_data_trained_after_fixing.png)
+
+
+## 9 June
+
+Since I will need to use spiking jelly to run SNN simulation, and it has ann2snn built in function.
+
+I would like to see how that works and check closely how the simulation is done, so that I could insert my own weights in the future simply just for simulation.
+
+Will run the example from its website tutorial.
+
+Find that the package does not support metal GPU API, so the device could not be set as mps.
+
+So, I followed the example of the conversion and implemented the conversion flow using the API provided.
+
+It could give great accuracy with barely no accuracy loss.
+
+### ⚠️ Also I found 'mps' could be applied to this simulator, it did not report any error when I use it.
+
+This simulation was based on the simulation time step of simply 8 steps.
+
+![great accuracy with barely no loss on simple ANN network](./img/ANN_and_SNN_accuracy_comparison_on_duration_of_8.png)
+
+In the meantime, I also asked for the GPGPU computing resources at our uni from IT. So that I could use CUDA to accelerate the training.
+
+
+## 12 June
+
+Now that I have figured out how the SNN tailor actually works, I think I could understand what they are doing with the ann2snn conversion.
+
+Now I want to try to implement the ann2snn manually myself. Will try to see if I could simply just switch the weights in the implementation.
+
+It turns out I could simply just modify the model's state dictionary to change the parameters the model has, and this has been verified by the simple ANN model implementation in script pytorch_expeirment.py in ANN2SNNconversion project.
+
+This potentially means that I could simply modify the state dictionary of the SNN model and load it back into the SNN model to give new implementation for SNN simulation.
+
+Just realised why my manually set implementation has not been giving any output, it is because I have been using lif neurons instead of simple IF neurons. By which, the lif neurons have decay effect and the decay constant by default is 2.0.
+
+After correcting this, I have successfully made correct inference on the input data.
+
+Now will try if the implementation will give similar accuracy as the built-in ann2snn implementation.
+
+I have successfully reimplemented the SNN based on the ann2snn implementation's parameters. The simulation gives the same simulation accuracy as in that with built-in ann2snn converted SNN.
+
+### Conclusion: This could offer a great SNN simulator option with high speed and GPU acceleration.
+
+Will now try to reimplement the converted SNN I have done couple months ago with simply just one hidden layer for mnist dataset, which I wrote software simulator for.
+
+This has also been finished successfully in 50 timesteps with really light accuracy drop from 97.12% 97.07%. Big success! Meanwhile, this did better than the original software based solution, I think it is because my analogue input into the hidden layer in the SNN reimplementation.
+
+![The corresponding 3layer ANN and SNN reimplementation on spikingjelly](./img/attempt_to_self_customise_ANN_and_SNN_in_spiking_jelly.png)
+
+The speed on the inferencing using spikingjelly is amazing, all the test sample could be done in a instant, while my software based solution takes much longer. 
+
++ Software based solution takes 1:36 to finish 1000 samples with 1000 steps. (4 seconds, 1000 samples with 50 steps 32.5% accuracy only, this may be because of the poisson encoding)
++ Spikingjelly takes 10.58 seconds for 10000 samples with 1000 steps. (0.79 seconds, 10000 samples with 50 steps 97.07% accuracy)
+
+
+## 13 June
+
+Since I have managed to use spikingjelly as the alternative SNN simulator. Now I could try to implement the QuantisationFramework for fast SNN inference.
+
+Will first train the quantised network by inserting the fake quant node into the network and do a quantisation aware training, during which weights will not be quantised. 
+
+Will see how low I could go for the activation quantisation bit.
+
+Since in the paper, it mentioned that it only implemented quantisation for activation, I also did this and left out the weights.
+
+When there are 4 bits, the quantised network performs almost the same as the original ANN with accuracy of 97.12% with just 3 epochs of training.
+
+It could go as low as 2 bits yet still achieves 96.25% accuracy. This is the lowest it could go for bit width(further will be binary network).
+
+By comparison, the original ANN gives the accuracy of 97.42%
+
+The function also offers the option to opt out first layer's quantisation (the input value will also be quantised), which is what we wanted for this case.
+
+Have manually calculated the normalised weights and threshold for the IFnode. This will be verified by spikingjelly simulator for the accuracy.
+
+
+## 14 June
+
+During validation, I found that the accuracy stayed as low as 50%, but no matter how long I extend the simulation duration, the final accuracy will just be around that point.(tried 50 steps and 10 steps)
+
+
+### ⚠️ Realised that I did not reset the network after each batch!!!
+
+After fixing this, I managed to achieve great accuracy of 97% with just 10 steps!!!
+
+It could be seen that all we need is just around 6-7 steps for around 96-97% accuracy!!! By comparison, the old ann2snn conversion will need 12 steps for similar accuracy.
+
+New LSQ method:
+
+![accuracy list along timestep on LSQ converted SNN](./img/LSQ_method_with_2bits_act_on_SNN.png)
+
+Old ann2snn method:
+
+![accuracy list along timestep on ann2snn conversion SNN](./img/old_ann2snn_method_4_SNN_conversion_acc_vs_timestep.png)
+
+This proves very useful for our case!!!
+
+#### Conclusion: the new method could offers very fast inference speed over ann2snn method, but eventually, it could not achieve the accuracy as high as ann2snn because there has also been accuracy loss at ANN --> quantised ANN. To achieve nearly lossless conversion, we have to also use more techniques. Such as knowledge distillation (during quantisation training), pre-charge the IF neurons to 0.5\*threshold (during SNN simulation), leave the output with more accuracy.
+
+Next step for me would be using this approach on our ensemble model implementation.
+
+Also I kinda want to combine the quantisation technique mentioned in LSQ about integer inferencing at the first layer since we are still doing all the floating point calculation before the first IFNode. Then all we would need is simply just integer arithmetic.
+
+
+## 15 June
+
+Since there's the technique to pre-charge the neuron with half the threshold to start with the inference sequence. It could speed up the inference speed. I could also apply this over my SNN implementation. 
+
+Managed to find the way to change the initialisation mem potential by looking at the reset function's source code.
+
+Apparently, the function checks the neuron's attribute to tell if the neuron is spiking neuron.
+
+```python
+
+for m in net.modules():
+    if hasattr(m, 'reset'):
+        m.reset()
+```
+
+I could simply just add this precharged mem potential by tweaking this function
+
+```python
+for m in net.modules():
+    if hasattr(m, 'reset'):
+        m.reset()
+        m.v = 0.5 * m.v_threshold
+```
+
+This could be integrated into the validation process, by doing this we have the accuracy going like:
+
+![SNN accuracy over the time step when it has pre-charged membrane potential](./img/inference_acc_over_the_same_imp_on_pre_charged_mem_potential.png)
+
+By comparison, the original implementation gives the accuracy like this:
+
+![SNN accuracy over the timestep without pre-charging half the threshold](./img/inference_acc_over_original_model.png)
+
+The plot of the three different accuracy comparison:
+
+![SNN accuracy curve plot over the two implementation](./img/acc_vs_time_step_for_3_different_approches.png)
+
+Could be seen from the plot that, ann2snn gives best accuracy, lsq converted snn gives slightly lower accuracy but faster, using pre-charged mem potential gives even faster inference as low as 4-5 steps.
+
+
+## 16 June
+
+Since the previous experiments prove to be working with simple ANN for MNIST classification, I will now set out to convert our ensemble implementation.
+
+Now this git repo has been branched with 3 main developing branches:
+
++ lana
++ del
++ rey
++ main (original)
+
+lana will be mainly used to continue the PyTorch implemented ensemble model, and do the conversion. This implementation used the input data that has been clipped and normalised, which achieves slightly less accuracy.
+
+del will aim to convert the previously trained ensemble net that was implemented by Tensorflow. This model was trained on the data that was not normalised but clipped by 0.
+
+Branch rey is going to implement a new implementation unlike before, this will use log2(1+x) to process the raw data instead of log(1+x), since log2(x) will be easier to implement in hardware. And basically these two are doing equivalent preprocessing.
+
+Will start off with rey to retrain the network using Tensorflow (cus it's less coding).
+
+
+## 19 June
+
+Have just finished the data preprocessing and saved the data in the folder data_set.
+
+Tried to do the training, and the results seem basically identical to the previous implementation with 98.3% accuracy
+
+![confusion matrix of the ensemble model with log2 plus one as input](./img/confusion_matrix_with_log2_plus_1_as_input_4_ensemble.png)
+
+![accuracy of the ensemble model with log2 plus one as input](./img/ensemble__screen_shot_acc_with_log2_plus_1_as_input.png)
+
