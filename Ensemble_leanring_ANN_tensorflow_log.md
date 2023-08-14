@@ -2654,7 +2654,7 @@ Copilot, the legendary tool to help me coding. I feel so dumb, it is actually do
 
 With the help from the GitHub repository, I managed to implement the network and trained the 3 layer ANN using learned step size quantisation. And also achieved w4a4 accuracy on the network with even higher accuracy?
 
-![Is this true, or is this just dreaming?](./img/LSQquant_network_on_ANN)
+![Is this true, or is this just dreaming?](./img/LSQquant_network_on_ANN.png)
 
 
 ## 31 May
@@ -2664,8 +2664,8 @@ work with the actual quantised values.
 
 Had a simple observation on the wights and quantisation parameters and realised that it is actually doing a good job describing the weights and limit them within a certain range. It could lock the weights within the range of \[-9,7\] without clamping. Guess when we do the actual implementation, we need to the clamping to be in place. Since normally for the b bits quantisation, the scales should be ranged from:
 
-+ Non-all positive quantisation: \[- 2^(b-1), 2^(b-1)-1 \] i.e. \[-8, 7\]
-+ All positive quantisation:\[0,2^(b-1)-1 \] i.e. \[0, 15 \]
++ Non-all positive quantisation: \[- $2^{b-1}$, $2^{b-1}-1$ \] i.e. \[-8, 7\]
++ All positive quantisation:\[0,$2^{b}-1$ \] i.e. \[0, 15 \]
 
 
 ## 7 June
@@ -2884,4 +2884,734 @@ Tried to do the training, and the results seem basically identical to the previo
 ![confusion matrix of the ensemble model with log2 plus one as input](./img/confusion_matrix_with_log2_plus_1_as_input_4_ensemble.png)
 
 ![accuracy of the ensemble model with log2 plus one as input](./img/ensemble__screen_shot_acc_with_log2_plus_1_as_input.png)
+
+
+## 20 June
+
+Will now try to retrain the model from the ensemble model above to do LSQ quantisation and conversion on the log2(1+x) and evaluate in spikingjelly.
+
+To do that, the weights from the model will be saved as in numpy so that it could be used to modify the state dictionary of the PyTorch model.
+
+Also since in the LSQ, we dont really do anything with biases, it remains as in floating point. This might give me trouble during conversion. I might want to drop the bias in the training process.
+
+Modified the original model function to give the option to use bias or not.
+
+Retraining the model...
+
+The retrained model shows that the overall accuracy is still as good as the one with biases, it gives 98.3%.
+
+![The accuracy of the ensemble model without the biases still remains almost the same](./img/accuracy_of_the_ensemble_model_without_biases_log2_plus1_input.png)
+
+
+## 21 June
+
+Will start the LSQ converstion from the first ANN, the setting will choose to skip the first layer quantisation.
+
+I simply converted the last one net for experiment:
+
+It shows that the network is susceptible to quantisation, not sure if it is because of the activation quantisation bitwidth or the fact that biases were not used.
+
+Here I did some simple tests to compare the accuracy loss:
+
+
+|       Acc       |        activation   |      bit           |      width         |
+|-----------------|---------------------|--------------------|--------------------|
+|first layer quant|          2          |         3          |          4         |
+|-----------------|---------------------|--------------------|--------------------|
+|        True     |        89.41%       |       94.15%       |         94.67%     |
+|       False     |        94.67%       |       95.26%       |         95.33%     |
+|-----------------|---------------------|--------------------|--------------------|
+|         Base    |           model     |       float32      |         95.78%     |
+
++ It could be seen from the tests above that the model will struggle more when the first layer is also quantised.
++ As expected, the more bitwidth it has for activation quantisation, the more accuracy will be retained.
++ A bigger improvement will normally be presented when the bitwidth change from 2 to 3 in either case of first layer quant
+
+💡 I could probably have mixed quantisation precision for different layers to reduce the accurcy loss as suggested in the original paper, this could be probably explore more later.
+
+
+Will now try to convert the quantised net into SNN and run the simulation with **2bits** activation and first layer quant turned off.
+
+Successfully converted the net, and obtained the accuracy loss with about 6% to 88%, this is kinda big. Since we don't really know the last layers max activation, I simply set the threshold for second layer as 10., this could probably make the last layer neuron over saturate. 
+
+To prove this thought I changed the last layer's threshold to 5, now the accuracy dropped even more, I will now change it to a larger number and see how it will do
+
+
+|           Accuracy       | precharge?| (Y/N)     |
+|--------------------------|-----------|-----------|
+|  threshold for last layer|     Y     |   N       |
+|--------------------------|-----------|-----------|
+|             5            |   81.4%   | 77.7%     |
+|            10            |   88.6%   | 88.1%     |
+|            15            |   92.9%   | 92.6%     |
+|            20            |   94.4%   | 94.6%     |
+|            25            |   94.8%   | 94.8%     |
+|            30            |   95.3%   | 95.1%     |
+|            35            |   95.0%   | 95.2%     |
+
+The accuracy table above showed that we could have lossless conversion from quantised ANN to SNN with the threshold set to the right value, sometimes we could even have higher accuracy than the quantised ANN and reach the original full precision model's accuracy.
+
+
+## 22 June
+
+Since it has been verified that this approach also applies to our neural nets, I should extend the approach to the rest of the net and see how close the accuracy would be to the ensemble ANN. It looks promising that we could retain the accuracy with SNN.
+
+The overall accuracy of the spiking neural net is 97.41%
+
+![the accuracy of the converted SNN ensemble](./img/Overall_spiking_ensemble_model_accuracy.png)
+
+
+## 26 June
+
+I found a paper that talks about quantisation ANN and fast SNN implementation, which gives a really good articulation about the resemblance and connection between these two.
+
+[The link to the fast-SNN paper that talks about the connection](https://arxiv.org/abs/2305.19868)
+
+The format is not the best but how the connection could be seen here was well presented.
+
+
+
+## 28 June
+
+Since it is working quite well with the SNN implemented, now I will try to save the model that we obtained and see how the accuracy of the ensemble model is over the simulation timestep.
+
+In the mean time, since our computation in the first layer is basically an ANN, I am considering quantise the weights and input value so that we could basically do 2-4 bits integer calculation at the very first layer, now the only thing that is not fixed point representation here is the scale.
+
+I will see how close I could quantise the scale value, since the threshold is basically $2^{b}-1*S^{l}$
+
+
+## 3 Jul
+
+Realised that now I have the input quantised already by the threshold. I only need to address the quntisation with weights and thresholds which are still in floating point.
+
+Also when you scale both the weights and threshold by the same number, you should have the neuron function the same.
+
+So Now I just have to make the weights and threshold representable with the scale of 8bits or more, it would be ideal.
+
+After observing the weights absolute value in this layer in the first diagonal model, I noticed the range of the weights are \[0.00044243305, 18.483824\], will see how the distribution looks now to decide the quantisaiton scale or if it possible to eliminate all the weights that is under 1.
+
+![The absolute weight values distribution along 32 bins](./img/distribution_of_the_weights_in_diaongal_0_3_Jul.png)
+
+together with the plot, there's the bin edge values and counts for each bin.
+
+array([40., 40., 32., 31., 32., 51., 38., 44., 51., 37., 49., 40., 36.,
+        33., 33., 24., 24., 22., 13.,  8., 13.,  5., 10.,  4.,  0.,  4.,
+         2.,  1.,  0.,  2.,  0.,  1.])
+ array([4.42433055e-04, 5.78048110e-01, 1.15565372e+00, 1.73325944e+00,
+        2.31086516e+00, 2.88847065e+00, 3.46607637e+00, 4.04368210e+00,
+        4.62128782e+00, 5.19889355e+00, 5.77649927e+00, 6.35410500e+00,
+        6.93171024e+00, 7.50931597e+00, 8.08692169e+00, 8.66452789e+00,
+        9.24213314e+00, 9.81973839e+00, 1.03973446e+01, 1.09749498e+01,
+        1.15525560e+01, 1.21301613e+01, 1.27077675e+01, 1.32853727e+01,
+        1.38629780e+01, 1.44405842e+01, 1.50181894e+01, 1.55957956e+01,
+        1.61734009e+01, 1.67510071e+01, 1.73286133e+01, 1.79062176e+01,
+        1.84838238e+01])
+
+It could be seen that almost 80 values were actually under 1.
+
+Will now do a simple experiment to see how the accuracy will vary along how much will be pruned.
+
+Took net 4 for this pruning experiment and found the relationship between the pruning rate and accuracy.
+
+![The pruning accuracy along with pruning rate](./img/normed_SNN_weight_pruning_exp_3_Jul.png)
+
+[95.33333333333334, 95.11111111111111, 94.88888888888889, 95.4074074074074, 94.96296296296296, 94.5925925925926, 93.18518518518518, 92.5925925925926, 91.03703703703704, 91.03703703703704, 89.18518518518519, 83.03703703703704, 77.70370370370371, 73.33333333333333, 47.7037037037037, 35.25925925925926, 15.333333333333332, 6.0, 6.0]
+
+The raw data here shows that the network demonstrated strong resilience to pruning.
+
+The pruning point starts from 5% up to 95% with the step of 5. With this in mind, it shows that the network is still capable of keep the accuracy of around 93% when the pruning rate is 35%.
+
+This could offer a good amount of weights sparsification.
+
+Will extend this to all the nets, so far only accuracy drop within 2% will be accepted compared to the baseline full precision model.
+
+
+## 4 Jul
+
+Learned about compressed sparse row (CSR), which could be used to represent a sparse matrix where most of the elements are 0.
+
+All it needs is 2a+n+1 elements, a is the number of non-zero values, n is the number of rows there will be three lists to record key information:
+
++ V: this list record all the non-zero values, size: a
++ Col_index: this list record all the col_index for the corresponding non-zero values, size: a
++ Row_index: this list record the indexing number for each row, size: n+1
+
+example:
+
+$$
+\left(\begin{array}{cccccc}
+10 & 20 & 0 & 0 & 0 & 0 \\
+0 & 30 & 0 & 40 & 0 & 0 \\
+0 & 0 & 50 & 60 & 70 & 0 \\
+0 & 0 & 0 & 0 & 0 & 80
+\end{array}\right)
+$$
+
+V         = [10 20 30 40 50 60 70 80]
+
+COL_INDEX = [0  1  1  3  2  3  4  5]
+
+ROW_INDEX = [0  2  4  7  8  ]
+
+To expand the matrix, we will go through row by row:
+
+```python
+original_matrix = numpy.zeros((row_num, col_num)) 
+for row in range(row_num):
+    index_begin = ROW_INDEX[row]
+    index_end   = ROW_INDEX[row+1]
+    values_this_col = V[index_begin, index_end]
+    col_index_this_row = COL_INDEX[index_begin, index_end]
+    original_matrix[row][values_this_col] = values_this_col
+```
+This could be considered as an alternative route to what I am doing right now with the deep compression through pruning, quantisation training (weight sharing), conversion.
+
+So apparently I believe pruning should be done before conversion cus the weights will be fine tuned after pruning, (p.s. the pruned weights will not be updated during fine tune) and before conversion we will have a really sparse matrix already.
+
+But would it be possible to do learned step quantisation with the pruned model, this might need us to get the pruning mask of the weights so that we would not update the pruned weights at the backward pass.
+
+Also I realised the pruning I did yesterday with the weights was only applied to SNN layer weights but not the first linear layer. Will update that today and see if it affects the accuracy that much.
+
+### Update on the pruning experiments for both linear layers.
+
+The experiment is repeated again on both layers this time for net number 4
+
+![updated pruning experiment with pruning extended to both layers](./img/expanded_pruning_extended_to_both_layers_4_Jul.png)
+
+[95.4074074074074, 95.03703703703704, 95.25925925925925, 94.96296296296296, 94.14814814814815, 94.07407407407408, 93.4074074074074, 93.03703703703704, 90.37037037037037, 88.66666666666667, 84.37037037037037, 76.22222222222223, 68.0, 55.629629629629626, 24.296296296296298, 13.111111111111112, 11.185185185185185, 6.0, 6.0]
+
+By comparison, this process did not introduce too much error in the implementation, the accuracy between these two did not fall apart from each other until pruning rate reaches 50%.
+
+I feel that I should first normalise the weights together with the threshold, and then time them with the max possible value with the bit-width I am planing to quantise.
+
+So if I am planning to represent the weights with b bit numbers, it will be:
+
+[weights, threshold]\* $2^{b-1}$ 
+
+
+## 5 Jul
+
+Now I will do the quantisation for the weights and threshold.
+
+I have two ideas of how to do it.
+
++ Simply represent the number as it is with limited fixed points (Like what Yuntao did), in the mean time I need to figure out how many bits I would need in the fractional part to get the satisfactory accuracy. Since the range of the weights are not super huge, it might be possible to represent the needed precision with 8 bits. The good thing about this is I could keep the value as it is and keep the "fast SNN inference" in place.
++ Normalise the weights and threshold back to [0,1] and time them with $2^{b-1}$, by doing this, I could limit all the weights and threshold in a uniform range it will be easy to represent and do the weights saving, not sure if I would lose the "fast SNN inference" in this process cus the weights and threshold has been rescaled.
+
+Will try both of them and see which one might be better. During the quantisation process, there definitely needs rounding process where the number will be divided by the step and round to the nearest integer. Could stochastic rounding be applied ? 
+
+### Now implementing the "represent as it is" conversion
+
+With that implementation done, I only got a flat line of 6% accuracy no matter how much bit precision I was giving after the decimal point. This is not right.
+
+I doubt that I got the wrong weights for quantisation.
+
+Will rewrite the weight extraction part, but I am still getting the same accuracy line, which does not make sense. Now saving the weights and compare them against each other.
+
+Find that the difference between them is basically negligible, which cannot explain what I observed with the accuracy difference. Every weight has been saved and now will be verified again to see is the weights are correct.
+
+Something must be wrong with the weights or the way I validate the model. The accuracy gives me a straight line of 6%.
+
+![Something was wrong with the quantisation](./img/something_was_wrong_with_the_accuracy_5_jul.png)
+
+
+## 6 Jul
+
+I have now saved the pruned weights and quantised pruned weights at different levels of precision (from 1 bit after decimal point to 20 points). Will now validate the model separately and compare them.
+
+Found that the saved weights itself only offers 6% accuracy, which means I have been using the wrong weights the whole time to do quantisation. This would of course give me the low accuracy.
+
+Found the bug I had in my code with how I would construct the data structure of the pruned weights at different pruning level. Just corrected it and reran the script from yesterday's pruning process. Got the accuracy list as below:
+
+[95.4074074074074, 95.03703703703704, 95.25925925925925, 94.96296296296296, 94.14814814814815, 94.07407407407408, 93.4074074074074, 93.03703703703704, 90.37037037037037, 88.66666666666667, 84.37037037037037, 76.22222222222223, 68.0, 55.629629629629626, 24.296296296296298, 13.111111111111112, 11.185185185185185, 6.0, 6.0]
+
+It turns out the accuracy is the same, then it might have something to do with how I quantised my weights.
+
+Found that I basically eliminated all the positive weights in the second layer during my quantisation, this is definitely not right. Will check again where went wrong (intuition my be the clipping), but so far, it could be inferred that the process is correct until pruning finishes.
+
+This is strange, I have been saving different levels of pruned weights as a lists of lists of 2 ndarrays.
+
+pruned_weights = \[ 
+
+\[ w_arr_1, w_arr_2 (level 1)\], 
+
+\[ w_arr_1, w_arr_2 (level 2)\], 
+
+\[ w_arr_1, w_arr_2 (level 3)\] ...... 
+
+\[ w_arr_1, w_arr_2 (level 19)\] \]
+
+When I individually save each list, it will be fine, but when I append all each one in the format above, all the positive values in the second w_arr will be lost.
+
+Will now separate pruning with quantisation process to avoid this issue.
+
+And yes, is solved the issue I previously had.
+
+Here I plotted the accuracy against the bits given after the decimal point:
+![it seems we do not need a really strong precision to obtain comparable accuracy](./img/quantisation_experiment_on_net_4_6_jul.png)
+
+Detailed data points:
+
+[61.85185185185185, 87.77777777777777, 92.5925925925926, 93.11111111111111, 92.81481481481481, 92.96296296296296, 93.03703703703704, 93.03703703703704, 92.96296296296296, 93.03703703703704, 93.03703703703704, 92.96296296296296, 93.03703703703704, 93.03703703703704, 93.03703703703704, 93.03703703703704, 93.03703703703704, 93.03703703703704, 93.03703703703704, 93.03703703703704]
+
+By comparison, the baseline full precision accuracy is 93.03703703703704 and this accuracy stayed at this level after we obtained 7 bits after the decimal point. But in fact, we probably only need 4 bits after decimal point.
+
+
+
+## 7 Jul
+
+At the same time I am wondering how fast it would take to achieve the accuracy needed:
+
+Here is the list of accuracy over timesteps when there is 4 bits after decimal point:
+
+[23.18518519 78.07407407 85.11111111 87.48148148 89.25925926 90.59259259 90.81481481 91.85185185 92.66666667 93.11111111]
+
+By comparison the full precision pruned model accuracy list over time is:
+
+[23.03703704 78.59259259 85.55555556 88.44444444 90.         91.55555556 92.37037037 92.66666667 92.88888889 93.03703704]
+
+It could be seen that to achieve accuracy of 93.1% time steps of 10 is needed.
+
+Quantisation at the same time also slightly slowed down the inference
+
+Will now try the other way of doing quantisation (normalisation and then quantisation)
+
+Tried my implementation and got the accuracy verified shown in the plot:
+
+![Accuracy of the model in 10 steps v.s. the total bit-width of representation](./img/accuracy_vs_total_bits_norm_and_quant_7_Jul.png)
+
+In the mean time, the list of accuracy is:
+
+[6.0, 6.0, 16.962962962962962, 47.85185185185185, 75.70370370370371, 90.14814814814814, 92.14814814814815, 93.33333333333333, 92.66666666666666, 93.25925925925927, 93.03703703703704, 93.03703703703704, 93.11111111111111, 93.03703703703704, 93.03703703703704, 93.03703703703704, 92.96296296296296, 93.03703703703704]
+
+The total bit-width ranges from 2 bits to 19 bits. It shows that the accuracy peaked at bits of *_9_*. By comparison, previous implementation shows the accuracy peaked at bits of *_11_* (4 bits after decimal point+7 integer bits) the max integer is the threshold 35. But previous implementation would only require different bit-width at two layers \[9, 11\], while this implementation would have the same bit-width \[9, 9\].
+
+Looking at the accuracy over time, it will be like:
+
+[23.77777778 78.88888889 85.11111111 87.85185185 89.85185185 91.25925926 92.22222222 92.44444444 92.59259259 93.33333333]
+
+
+## 10 Jul
+
+The comparison of different model's accuracy over time:
+
+![Different levels of optimisation for SNN models' accuracy comparison](./img/different_level_of_optimisation_of_SNN_acc_over_time_10_Jul.png)
+
+Looking at the comparison, it could be concluded that pruning process made the accuracy drop a bit more than quantisation did. But this is because we did not compensate after pruning, which could be done in ANN.
+
+Another thing to notice is we did not lose a lot speed at inference stage.
+
+I have one thing that bugs me, I set the last layers threshold as 35 out of simplicity, but the accuracy between 35 and 30 did not differ much. I could totally use 31 (max number representable by 5 bits) as the last layers threshold. This will definitely help with the quantisation method "true representation".
+
+Another thing I am thinking about is the per-channel quantisation, to do this I have to figure out how to set up different threshold for different neurons in one layer in _SpikingJelly_. 
+
+Checking the package documents now...
+
+It did not mention about setting different threshold in the API, but from the source code, I could see the IF stage would do this:
+
+Think I could write up my own class for different thresholds in this case, the code looks straightforward.
+
+ 
+## 11 Jul
+ 
+All there's left is just the input that has not been quantised. But I don't think this would be more difficult.
+
+One way to do it is simply to preprocess the input to the precision of integer and train the data in ANN.
+
+So at this point the whole flow could be established as below:
+
+![the Flow established from the previous implementation](./img/SNN_imp_flow_12_Jul.jpeg)
+
+
+## 12 Jul
+
+With the flow being established, I probably need to retrain the network with preprocess done differently
+
+The totally integer arithematic
+
+```python
+def preprocess(input_data, dia_num):
+    ## input_data would be a one dimensional spectrum
+    ## dia_num is the number of diagonal
+    int_log = int(log2(input_data+1))
+    length = len(int_log)
+    offset = dia_num+1
+    output_lenth = length - offset
+    ## left shift elements in the array
+    shifted_data = np.roll(int_log, -offset)
+    minus_data = shifted_data - int_log
+
+    return minus_data[:-offset]
+
+```
+
+## 13 Jul
+
+Extracted the data and did the preprocess differently, now retrain the network based on the integer input.
+
+Made few adjustments so that the old script could train the model with integer inputs.
+
+It could be visually seen that the accuracy is much lower than before (3-4% drop for one individual model), and the overfitting problem is much more serious (3-5% accuracy gap)
+
+Will probably try later to toggle off the "input Relu" option to see if we could bring back any accuracy.
+
+The Final accuracy is not as bad though (97.26%)
+
+![Confusion matrix with integerised input clipped at 0](./img/clipped_integerised_input_ensemble_confusion_matrix_13_Jul.png)
+
+
+## 14 Jul
+
+Thought about the input clipped at 0, but basically I will not have to worry about encoding the input to spike at this point, so I could probably retain the negative input and see if the accuracy could be retained.
+
+Retraining the ensemble now and see.
+
+Now I could see that the training has already been better than last experiment.
+
+The final results showed that the accuracy improved only a little bit to 97.93%
+
+![Confusion matrix with intergerised input without clipping](./img/confusion_matrix_with_integerised_input_non_clipping_14_Jul.png)
+
+However, this "best model" I saved did not beat the final model I trained. The "best model" saved by the callbacks only gives 97.41%. 
+
+I feel I could have higher accuracy with more training or more regularisation.
+
+Will do the training again with longer patience of 100 and see if I could have higher accuracy.
+
+Got accuracy of 97.85%, confusion matrix will be left out in this case.
+
+The "best model" gives 97.56% this time.
+
+Will try one last time with a bigger parameter for dropout.
+
+0.25 --> 0.5
+
+Not sure what it is, but it seems with the dropout rate like this, the training could not converge well with only the accuracy of around 60%, but validation seems ok with around 82%.
+
+Probably I will just use the previous settings for the training to have a baseline accuracy of 97.56%.
+
+Now extending the patience to 200 cus last extension got me 0.1% accuracy boost on the "best model".
+
+The final model gives 97.7% accuracy. "Best model" gives 97.56%
+
+
+## 17 Jul
+
+Now I will take the model and do the pruning and fine tuning process to optimise.
+
+The pruning API is included in tensorflow. I could simply just use it.
+
+In the tutorial they employed the sparsity start from 50% to 80%, I will try to use something slightly less intense probably from 30% to 60% and then progressively push harder.
+
+From the experiment I could see that the model will experience at least 3% accuracy drop with 50% sparsity, or worse when its 60%.
+![first diagonal model's accuracy dropped at least 3% after pruning with 50% pruning ratio](./img/accuracy_after_pruning_extended_to_60_percent_17_Jul.png)
+
+Not sure if it is because I trained the model using dropout, so it will suffer more when I am doing pruning.
+
+Will try to extend the pruning with ratio of 50% to the entire ensemble and see how the total accuracy drop will be.
+
+On the side note, tensorboard is not working on my Mac for some reason, zsh complained "Illegal hardware instructions", this might be M1 platform not being supported.
+
+By observation, some diagonal model did better than other the rest, which would only experience about 1% accuracy drop.
+
+Actually, it may not be that bad, overall with 50% pruning ratio, the ensemble model accuracy only dropped from 97.54% to 97.19%, which is not bad when there is only around 0.3% accuracy drop overall.
+
+![50% pruned ensemble with accuracy still hitting above 97%](./img/50_percent_pruned_ensemble_still_hitting_aobve_97_acc_17_Jul.png)
+
+It will be interesting to see how the whole ensemble model will be at different level of pruning ratio and get and accuracy vs pruning rate figure.
+
+
+## 18 Jul
+
+#### 💣 Now there is actually one hidden mine that might cause mismatch between software and hardware implementation, that will simply be the preprocessing, I have been using round to the closest integer function at log2(1+x) preprocessing, which may cause some trouble.
+
+Could probably use np.floor(log2(1+x)) instead of np.rint(logx(1+x))
+
+Since the pruning has been finished, the conversion will now start.
+
+💡 Inspired by the meeting today with Ed, I could probably save the final model at the end of the training instead of the "Best model". Cus from the experiment above, what was observed is that the "best models" sometimes would make similar conclusions and be homogenous about the final verdict, which is not what we want in the ensemble model. "Differences" or "disagreement" would potentially make the ensemble model make better decisions.
+
+Now I will continue with the models I obtained from pruning and observe the network's weights.
+
+And of course, without the mask, the pruned weights were all updated by LSQ together with other parameters, need to figure out a way to set the model so that it won't update the already pruned weights.
+
+Now I need to research on ways to set the mask for model so that it wont update the pruned weights.
+
+I could probably write my own pruning class and see if I could use this for new round training.
+
+Think this might be doable but not sure how much accuracy would be retained.
+
+[Found this github link to the repo that might be helpful](https://github.com/pytorch/tutorials/blob/main/intermediate_source/pruning_tutorial.py)
+
+
+## 19 Jul
+
+I have been sick today. Could not really work....
+
+
+## 21 Jul
+
+Took Wednesday and Thursday off, now I am actually curious about the relationship with the rate of pruning and accuracy of the model.
+
+In the mean time, I will save the latest training model instead of the "best model".
+
+While checking closely on the code, I actually have saved the "latest model" simply as pickle files.
+
+But this has been overwritten when I run the script for a second time....
+
+Just modified the script and start running now.
+
+It has been proven again, where the latest model gives 97.78% accuracy while "best model" gives 97.19%.
+
+Now rerun the pruning script with the newly saved model with "latest_model" turns on to see the accuracy.
+
+With the newly trained model, after pruning I actually got the accuracy of 97.7% which is really good.
+
+By comparison, previous run gave me the pruning conversion from 97.54% to 97.19%, now it is 97.79% to 97.70%.
+
+final sparsity: [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+
+final accuracy: [97.85, 97.78, 97.7, 97.11, 96.52, 93.19, 43.41]
+
+Based on the sparsity v.s. accuracy, the optimisation will go with 0.7 sparsity given that the accuracy only dropped around 1% with 70% less parameters.
+
+The newest pruning gave me 97.11% accuracy, this is great!
+
+
+## 24 Jul
+
+Learnt how to use the pruning API from PyTorch, but combining pruning with LSQ seems challenging.
+
+Yes, it seems doable with combining the pruning model and LSQ, but the results are not as good. Not sure if all the pruned ones were the one I actually wanted.
+
+
+## 25 Jul
+
+Tried different combinations of activation bits and pruning rates for a single diagonal net, the diagonal 4, simulation for 10 time steps
+
+
+|           Accuracy       | pruning   |  rate     |   (%)     |           |
+|--------------------------|-----------|-----------|-----------|-----------|
+|  activation bits         |    40     |   50      |   60      |   70      |
+|--------------------------|-----------|-----------|-----------|-----------|
+|             2            |    88.37  |    87.56  | 84.59     |   74.74   |
+|             3            |    87.63  |    88.22  |   84.96   |   76.37   |
+|             4            |  88.22    |   87.78   |   86.15   |   77.33   |
+
+
+By comparison, the baseline ANN accuracy is: 91.56%, 
+ANN2SNN conversion gives accuracy of 81.11% 
+Both of these only contains 30% weights.
+
+
+I am curious to see the following two routes:
++ pruning first then convert 
++ conversion first then pruning
+
+which one of these two solutions would give better performance, cus at this moment, it seems pruning rate at 70% will heavily impact our accuracy performance.
+
+
+## 26 Jul
+
+Despite the noticeable accuracy drop here, I will still extend the conversion to all the nets and see how the ensemble would perform a 60% pruning rate will be applied here.
+
+After observing the weights, it seems that the pruned weights are not exactly as "pruned" as before, some weights were supposed to be "0", but they were updated during training, while some were supposed to be updated were eliminated. Also in the meantime, it seems the pruning rate did not meet my expectation with 0.6, both layers only gives me 0.5 pruning rate. While my original weight did give me 0.7 pruning rate.
+
+It seems necessary to write my own pruning class at this point.
+
+Realised that I have been somehow using the 0.5 pruned weights in the model the whole time, will fix this now.
+
+Managed to fix the problem and got the correct pruning rates on the model and training of LSQ has been promising, but the accuracy is really low. with just 31.78%
+
+After observing it could be seen that there are a lot of 0 in the prediction, my assumption might be the threshold being too big.
+
+changed the threshold to 10, it did not give big improvement, but the accuracy did improve a bit to 33.56%. It will be more helpful to check the internal behaviour and.
+
+There must be something wrong with the conversion or the model parameters, cus apparently the LSQ model is working fine. It even has a better accuracy than the original model.
+
+
+## 27 Jul
+
+Technically, it should work with the conversion method.
+
+Now I should get the LSQ trained weights verified first and see if it is actually giving the reported accuracy.
+
+It has been verified manually that the trained lsq model works and it gives the claimed accuracy as the training.
+
+Now just need to observe what exactly is going on with the conversion.
+
+Technically it should be consistent.
+
+By observing the output of the final layer in the LSQ model, it could be seen that almost all the outputs were 0, so of course this could not be correctly reflected by the corresponding SNN. This was caused by the way the ANN has been trained, since the last layer used softmax so that the training has been reliant on negative activations.
+
+Now I should probably check if the original pruned ANN is not eligible for conversion.
+
+So it turns out the original pruned model gives out perfectly fine prediction with basically all positive values.
+
+I manually eliminated all the negative activation, yet the accuracy did not change at all, I have to be more careful at the lsq training stage.
+
+It means LSQ training went wrong (not expected in positive values)
+
+Just realised I may have been observing the output of the softmax layer instead of the actual activation, need to see the actual activation before softmax layer.
+
+After observing the original pruned ANN model, it could be noticed that the original pruned model's activation output has already been negative.
+
+The pruning process needs to be repeated with another different activation function or needs to be retrained.
+
+
+## 28 Jul
+
+Now I am rethinking about the training of the network, I should probably use relu on the output layer and use mean_squared_logrithmic_error as the loss function.
+
+So far, the training accuracy is much lower than previous configuration, this is concerning... Each net training takes basically all 1000 epochs yet the overfiting and low accuracy shows the training is not really encouraging.
+
+Of course this implementation failed miserably with the accuracy of just 81.19%.
+
+Wait a second, somehow this ensemble model delivers 95.7% accuracy when all the rest individual models barely touch 90%.
+
+This is strange.....
+
+Also noticed that the first saved model is behaving like it has not been trained, output are basically all zeros.
+
+This set of models were saved in the folder named "Ensemble_CP_log_2_plus_1_w_sub_int_non_negative"
+
+Apparently this low accuracy results could be reproduced with model output activation function as Relu, once the activation were replaced with "Sigmoid".
+
+In the meantime, I am thinking of something new:
+
+I could use sigmoid at the output layer for activation and cross entropy as the loss function, this should be better than relu + mean_squared_log.
+
+Reason why this might work is that I get to compress the output of each neuron between 0-1 and cross entropy could be applied. As for sigmoid, only the biggest positive value will be pushed near 1. 
+
+This set of models will be saved in the folder named "Ensemble_CP_log_2_plus_1_w_sub_int_non_negative_sigmoid"
+
+Realised that I did not add dropout layers for the previous training loop for regularisation, have added for this run, and it is apparently doing much better than last run.
+
+Surprisingly, this set of model gives even lower accuracy at 92.07% (best model gives 95.56%), with sigmoid changed to relu the accuracy achieved 97.63% (????)
+
+Actually on the second thought, I could simply just observe the final layer's accumulator value instead of checking spikes, it would be more accurate.
+
+
+## 31 Jul
+
+Will try another around with the combination of sigmoid+mean_squared_error and see how the training will be.
+
+So far it is doing ok it seems, the network validation accuracy is not too far from the training accuracy.
+
+But overfitting definitely exists.
+
+![overfitting exists at the training stage](./img/overfitting_happening_at_training_31_Jul.png)
+
+surprisingly, I am getting the overall accuracy of 97.85%. This is looking positive at the moment. And since we used sigmoid at the very end, we are encouraging the output label to be as positive as possible instead of "being the one that sucks least". Same as before, the "best model" gives slightly lower accuracy than the "latest model".
+
+Before stepping into the next step, I need to see if the biggest final activation is above 0.5 (the raw activation is above 0).
+
+Tried to eliminate all the value below 0.5, and this brought the accuracy drop of around 3-4% to 93.777%. This may not be optimal, but overall it is better than before, now just have to implement the mechanism of making decision based on the mem potential if there's no spikes.
+
+Potentially this could be a problem if the output layer is not "positive enough" to cross the threshold.
+
+Now that I am thinking of it, can I use the raw output of softmax+cross_entropy as the soft label to train sigmoid+cross_entropy?
+
+Should I continue with the pruning process? Probably yes.
+
+
+## 1 Aug
+
+Conclusion so far is, the behaviour of the LSQ converted spiking net should be right. But the last layer's raw activation is mostly negative so that the inference has been bad.
+
+To verify this, I will write another class of spiking neuron from SpikingJelly, the new neuron will simply just accumulate and charge but won't fire.
+
+Another solution is to write a class to give both positive spike and negative spike.
+
+Will try to write the Integrate neuron first.
+
+💡 The easiest way to verify is to set the threshold high, so high that it wont fire at all and simply just check the membrane voltage.
+
+
+Tried to set the last layer's threshold to 300, and apparently it won't fire simply just read out the last layer's mem voltage to make final decision. This has led to a significant accuracy increase. 
+
+Within 5 time steps, we could reach accuracy of 87.48%. By comparison the pruned ANN gives 82.81%, LSQ trained ANN gives 85.18%.
+
+![The accuracy from the previously lsq converted model but evaluated by the mem voltage](./img/accuracy_list_over_time_fluctuate_1_Aug.png)
+
+The accuracy fluctuate over time because the neuron is still the old IF neuron which has a really high threshold, this would of course bring errors.
+
+Theoretically, if the neurons in the final layer are the Integrate-but-no-fire neuron, this would be eliminated, and accuracy would simply just increase and stay at a certain number.
+
+![Evaluate the integrate and no fire neuron SNN model](./img/evaluate_integrate_but_no_fire_individual_SNN_1_Aug.png)
+
+This showed that the conclusion made previously was basically right in the overall general trend, but the model would still fluctuate in terms of the accuracy.
+
+
+## 2 Aug
+
+Since this has been addressed, I could probably check how the entire ensemble would work with the established conversion.
+
+### Correction: I have been using the class individual_SNN_4_ensemble for the verification yesterday instead of the newly defined class individual_SNN_4_ensemble_no_fire in the lsq training and converting function, but the newly added load trained lsq model and verification has been correctly defined. Therefore the accuracy should be the same as yesterday.
+
+Managed to write up the script for the training and conversion for the whole ensemble model, now getting this verified.
+
+Could be noticed that the LSQ model generally will do better than the original pruned ANN.
+
+After all the training and conversion, it could be seen that the final ensemble SNN gives the accuracy of 97.04%!!!
+
+By comparison, the original pruned ANN gives the accuracy of 97.11%.
+
+This is great news!!!
+
+After this, we could happily move over to quantisation and FPGA implementation!
+
+
+## 3 Aug
+
+Now I should move on to the quantisation stage of the implementation.
+
+But one thing to remember is that I should check the final output membrane potential in the simulation after quantisation to make sure the "winner" class in the calculation is not gonna be out of range or way too close to the rest of the neurons.
+
+Another thing I would like to see is how the accuracy vs time step would be for the whole ensemble.
+
+Time vs accuracy for ensemble spiking net:
+
+timestamp: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+ensemble accuracy: [56.59, 96.07, 97.11, 97.48, 97.04, 97.19, 97.41, 97.19, 97.26, 97.04]
+
+From the results it could be seen that the accuracy will reach max simply at the very early time step of 4, this makes total sense since I have quantised trained the model with 2 bits, theoretically, it will simply take 4 steps to transfer all the possible information needed.
+
+The accuracy fluctuate because I did not set the max spikes a neuron could fire so this would influence the judgement of the network, if I set the rule or max spikes a neuron could fire, the accuracy should stay stable and reach higher as time step increases.
+
+
+## 7 Aug
+
+Quantisation to be done this week.
+
+According to what I have experimented previously, I will first normalise the weights together with the threshold and then quantise into 8 bits weights or less.
+
+The evaluation process will be done given **4** time steps like before.
+
+Managed to quantise the weights and threshold to 8 bits and the results gave me 97.04% of accuracy.
+
+When I quantise the weights to 16 bits, there is basically no loss on the accuracy from the floating point model of 97.48%.
+
+quant_bit: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+ensemble_accuracy: [5.56, 6, 6, 6.89, 68.15, 95.41, 97.04, 97.04, 97.19, 97.48, 97.48, 97.56, 97.56, 97.56, 97.48, 97.48]
+
+In our application, 8 bit should be enough for the application and would be preferred over an odd number that is not power of 2.
+
+
+## 8 Aug
+
+One thing important that needs to be verified should be the final layer's membrane potential.
+
+Could probably use the clip method at the end of the output so that I could see at least how many bits I would need for the last layer.
+
+Now Verifying the activation based activation...
+[0.8651851851851852, 0.9703703703703703, 0.9703703703703703, 0.9703703703703703, 0.9703703703703703, 0.9703703703703703, 0.9703703703703703, 0.9703703703703703, 0.9703703703703703, 0.9703703703703703, 0.9703703703703703, 0.9703703703703703, 0.9703703703703703]
+
+This starts with bit width of 8 and stopped at 20, it looks that all we actually need is simply just 9 bit for the activation based accuracy judgement to retain the full accuracy. For simplicity, I will use 10 bits for the accumulator.
+This should be enough for both layers.
+
+
+## 14 Aug
+
+
 
