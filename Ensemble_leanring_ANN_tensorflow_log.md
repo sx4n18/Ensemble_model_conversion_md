@@ -3617,6 +3617,7 @@ Developed the neuron model, it is pretty straightforward and simple with just we
 
 The whole layer's diagram could be shown as: 
 
+![simple diagram of the layer](./img/one_layer_architect.jpeg)
 
 Did the simulation of the simple neuron model, the whole idea is that we could multiplex using the neuron model for the whole layer's computation.
 
@@ -3630,4 +3631,6 @@ Just added another control signal to the neuron model input_valid, since we coul
 
 ## 15 Aug
 
-Now I could just simply 
+Now I could just simply join the components together and try to write up the state machine to control the data flow.
+
+
