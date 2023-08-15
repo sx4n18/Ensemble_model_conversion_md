@@ -3613,5 +3613,21 @@ This should be enough for both layers.
 
 ## 14 Aug
 
+Developed the neuron model, it is pretty straightforward and simple with just weight and activation input and membrane voltage input so that it could update the membrane state.
+
+The whole layer's diagram could be shown as: 
 
 
+Did the simulation of the simple neuron model, the whole idea is that we could multiplex using the neuron model for the whole layer's computation.
+
+![Simulation of the simple IF neuron with the control signal and accumulator](./img/simple_neuron_model_with_accumulator_simulation_14_Aug.png)
+
+
+Just added another control signal to the neuron model input_valid, since we could not control the input weight and activation to be valid at the same time, so we need to give the neuron a signal to make it compute the sum when input_valid is on, otherwise we should ignore the input value.
+
+![Simulation for the neuron with added control signal input_valid](./img/added_another_control_signal_input_valid_14_Aug.png)
+
+
+## 15 Aug
+
+Now I could just simply 
