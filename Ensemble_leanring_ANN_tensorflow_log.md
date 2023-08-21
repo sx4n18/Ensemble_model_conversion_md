@@ -3685,9 +3685,50 @@ input_value_int.mem should be like:
 ![preprocessed input value that is about to be activation in the memory](./img/Input_value_mem_data_structure_18_Aug.png)
 
 offset_mem.mem should be organised like:
-![the data structure explanantion of the offset value memory](./img/Offset_value_mem_data_structure_18_Aug.png)
+![the data structure explanation of the offset value memory](./img/Offset_value_mem_data_structure_18_Aug.png)
 
 CSR_weight.mem should be organised like the description here:
 ![the data structure of the compressed sparse row representation in the memory](./img/CSR_weight_mem_data_structure_18_Aug.png)
+
+
+## 21 Aug
+
+Realised that my model would probably skip the last loop of computation, so the timing with the w_n_a_valid signal and the actual value is a bit off. Will have to tune it so that they would match.
+
+The first neuron should give me 56 (This has been verified in python) instead of 59, my suspicion is that it did not do the last pair of weight and activation computation.
+
+![The final output of the first neuron is 59 instead of 56](./img/The_neuron_should_give_56_instead_of_59_21_Aug.png)
+
+Will have to check in detail where went wrong.
+
+Checked the second neuron's computation, and it may have just verified my thought, since it gives me 111 instead of 109. And the last pair of computation should give -2 to make the computation right.
+
+After observing the waveform, I realised that the activation and weight data flow take 2 clock cycle to arrive the neuron after the addr has been changed at the state machine's output, but the computation enable signal w_n_a_valid did not change accordingly, therefore, we did the first computation twice, and left out the last computation. 
+
++ Since each w_n_a_valid enables the computation of last pair, I could extend for another round of computation, and disable the very first computation. 
+
++ Or I could add another state tidy_up to allow the neuron to finish the last computation before exporting the voltage, meanwhile, the w_n_a_valid signal needs to be delayed for 2 clock cycles.
+
++ Or I will make the w_n_a_valid 1 at state 5 and delay it for extra one clock cycle and make the tidy_up state only last for 1 clock cycle?
+
+Will try all 3 and see which one works.
+
+Tried the second solution first, and apparently it works well, all we need is extra 2 clock cycles.
+
+![The neuron is giving correct output activation 109](./img/The_second_neuron_gives_correct_output_activation_109_this_time_21_Aug.png)
+
+Supposedly, the first solution should work too at the cost of extra 2 clock cycles and more control logic to count an extra offset, but this implementation is counter intuitive.
+
+And I let this run a little bit longer, it shows that all the activation calculated in the first layer has been correct! But it seems that it failed to go to the second loop, I will have a closer look on this.
+
+I will now try the third solution and see how that will do.
+
+It seems this solution works too, and we could have less delay (1 clock cycle rather than 2) for tidy_up state. And w_n_a_valid will only be delayed for 1 cycle. This solution takes less resources and time, and the logic is sound.
+
+This implementation will be saved.
+
+
+New problem popped up, after finishing the first layer's computation, it could not reset itself to do the next time step's computation, and after finishing the first loop, the neuron could not correctly do the second loop because the accumulator's value is wrong.
+
 
 
