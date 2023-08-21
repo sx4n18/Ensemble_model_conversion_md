@@ -3633,4 +3633,61 @@ Just added another control signal to the neuron model input_valid, since we coul
 
 Now I could just simply join the components together and try to write up the state machine to control the data flow.
 
+Before that I need to visually check the connection. 
+
+And here is the shcematic:
+
+![simple single layer schematic](./img/shcematic_of_the_first_analogue_input_layer_15_Aug.png)
+
+
+Also I need to test the behaviour of the controller sate machine before connecting it to the memory and neuron.
+
+
+
+## 16 Aug
+
+Have tested out the controller state machine, and added another state as in initialisation.
+
+This state would simply reset all the voltage potential to half the threshold.
+
+Also tested out the behaviour in the testbench. 
+
+![Controller state machine simulation waveform](./img/controller_state_machine_sim_16_Aug.png)
+
+Will generate the memory file and test the behaviour of the encapsulation.
+
+
+
+## 17 Aug
+
+Added the voltage memory for the initialisation test to see if the initial voltage could be correctly configured.
+
+![Added voltage memory in place for simulation, it seems the memory has been successfully initialised](./img/simulation_with_voltage_memory_in_place_for_initialisation_16_Aug.png)
+
+
+Now I could add the neuron model into the simulation too to see if the initial memory could be loaded and will the correct output memory will be dumped.
+
+Realised that dump_voltage state may take longer than one clock cycle, since it needs another clock cycle till the output memory voltage to be exported, so I extended the state.
+
+![Connected the neuron and voltage memory together simulation looks fine](./img/Connected_neuron_and_voltage_memory_success_17_Aug.png)
+
+
+## 18 Aug
+Now I need to generate 3 files so that I could do the proper simulation with all the necessary components.
+
++ "input_value_int.mem"
++ "offset_mem.mem"
++ "CSR_weight.mem"
+
+each will have the specification as follow:
+
+input_value_int.mem should be like:
+![preprocessed input value that is about to be activation in the memory](./img/Input_value_mem_data_structure_18_Aug.png)
+
+offset_mem.mem should be organised like:
+![the data structure explanantion of the offset value memory](./img/Offset_value_mem_data_structure_18_Aug.png)
+
+CSR_weight.mem should be organised like the description here:
+![the data structure of the compressed sparse row representation in the memory](./img/CSR_weight_mem_data_structure_18_Aug.png)
+
 
