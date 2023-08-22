@@ -3728,7 +3728,41 @@ It seems this solution works too, and we could have less delay (1 clock cycle ra
 This implementation will be saved.
 
 
-New problem popped up, after finishing the first layer's computation, it could not reset itself to do the next time step's computation, and after finishing the first loop, the neuron could not correctly do the second loop because the accumulator's value is wrong.
+New problem popped up, after finishing the first layer's computation, it could not reset itself to do the next time step's computation, and after finishing the first loop, the neuron could not correctly load the membrane voltage to the neuron.
 
 
+Fixed the first problem where the computation could not reset itself after finishing 40 neuron's computation. It was due to the counter's reset mechanism being faulty.
+
+
+## 22 Aug
+
+Dug out the issue where after finishing the first loop of computation, the neuron could not load the correct membrane voltage. That is because the export voltage takes 2 clock cycles (state 7 and 8), and the address could only be updated after the export (state 2), and the correct voltage will be output at the next state (state 3), however, the load_voltage signal was loaded at state 2, so the wrong value will be loaded.
+
+![Wrong value of the mem voltage being loaded to the neuron](./img/waveform_where_neuron_could_not_load_correct_voltage_22_Aug.png)
+
+Solutions will be:
+
++ Delay load_voltage for 1 clock cycle
++ Set the load_voltage signal at state 3
+
+Will try both and see.
+
+Tried the first solution, and it appears to be effective, the neuron's voltage was correctly loaded and the voltage for 2 loops of computation has been right! But this will add an extra register.
+
+Tried the second solution, it works too and we don't have to add another register for this. 
+
+Will use the second solution in the implementation.
+
+
+Thought about the design of the second layer, I don't think I should give the same design as the first layer. Since the first layer is used to generate spikes, it is better to go through neurons in the hidden layer one after another.
+
+But the second layer should only compute when there's a spike, and all it does is add or subtract. Therefore, it should be spike-driven accumulator. Also the second layer does not have to count the timestamps since it has been counted by the first layer.
+
+Also it is worth noticing that the state machine will wrap back to initialisation state after finishing 4 time stamps. Also the final activation has been verified correct after 4 timestamps.
+
+The issue that needs addressing next:
++ Figure out the spike transmission mechanism.
++ Implementing the following "True spiking" layer
+
+Will start with the second task first.
 
