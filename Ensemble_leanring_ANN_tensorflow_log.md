@@ -3769,3 +3769,25 @@ Will start with the second task first.
 
 ## 23 Aug
 
+Did simulation for this neuron, and apparently it is failing at handling negative values.
+
+I think it is due to the problematic bit extender.
+
+It turns out I connected the wrong port to the internal DSP INF_neuron.
+
+I connected the input_mem_vol directly to the accumulator, which means it could only do the accumulation once.
+
+![The corrected DSP connection](./img/correct_internal_dsp_connection_23_Aug.png)
+
+
+## 24 Aug
+
+Managed to write up the second layer's state machine and did some  really preliminary test on it. 
+
+So far the state transition and initialisation has been done correctly
+
+Will have to add real memory files and spikes to test in details.
+
+This will be generated today.
+
+
