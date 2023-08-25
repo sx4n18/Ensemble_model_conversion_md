@@ -3791,3 +3791,67 @@ Will have to add real memory files and spikes to test in details.
 This will be generated today.
 
 
+## 25 Aug
+
+Since the memory files have been successfully generated, now I will just run the simulation to see the behaviour of the second layer and see if I am getting the results I wanted.
+
+I am also experiencing the ERROR: 
+
+ERROR: [XSIM 43-3316] Signal SIGSEGV received.
+
+I think it might be the memory file's issue.
+
+Will try to rename the memory file and simulation again.
+
+This time because it did not load the memory file, it ran successfully without any issue.
+
+So It is the memory file issue, will try to regenerate the file again and see.
+
+I recreated the memory file manually, but also added extra lines of 13'h0000 to fill up the memory, it can simulate now.
+
+Found that the neuron would load the wrong membrane voltage from the memory, this is because it needs 2 clock cycles from the address to CSC_w_addr for the actual voltage to be valid.
+
+for example here:
+
+| clock cycle | state       |  variable 1 |  value      | variable 2 |  value      | variable 3  |  value      | variable 3  |  value     |
+| ----------- | ----------- | ----------- | ----------- |----------- | ----------- | ----------- | ----------- | ----------- |----------- |
+| 1           | dump_vol_1  | csc_w_addr  |   23  (+1)  | col_index  |  5          |   weight    |   -24       | voltage_out |  27        |
+| 2           | fetch_w_0   | csc_w_addr  |   24        | col_index  |  5 (\*)     |   weight    |   -24 (\*)  | voltage_out |  27        |
+| 3           | fetch_w_1   | csc_w_addr  |   24        | col_index  |  7          |   weight    |   -108      | voltage_out |  27 (\*)   |
+| 4           | load_vol    | csc_w_addr  |   24        | col_index  |  7          |   weight    |   -108      | voltage_out |  63        |
+| 5           | compute     | csc_w_addr  |   24        | col_index  |  7          |   weight    |   -108      | voltage_out |  63        |
+| 6           | dump_vol_0  | csc_w_addr  |   24        | col_index  |  7          |   weight    |   -108      | voltage_out |  63        |
+| 7           | dump_vol_1  | csc_w_addr  |   24  (+1)  | col_index  |  7          |   weight    |   -108      | voltage_out |  63        |
+
+It could be seen that the change in csc_w_addr at clock cycle 1 will actually take place in clock cycle 2, as a result the new col_index and weight will be loaded out in clock cycle 3 and the actual voltage_out from the voltage memory for neuron 7 will be out in clock cycle 4.
+
+Will now try to manually create another memory file and only use 216 lines of memory content to see if it is the reason or just the original file was broken.
+
+Apparently it has no problem with the half-defined memory file, think the original file generate by python was broken.
+
+Also it seems the register compute_index_cnt I defined is simply just CSC_w_addr in this context, therefore, it has been optimised.
+
+Will now give another spike and see if it gives correct simulation.
+
+And it seems that it does not have any visible problem that could be observed by waveform.
+
+Think it is good progress so far.
+
+Next step should be modification of the first layer (spike generation) and integration of these two layers.
+
+In the meantime, I will check the solution for the log transformation. The subtraction could actually be solved by using shift register.
+
+Searched the website and it seems that I could probably split the computation as follows:
+
+$log_{2}^{xy} = log_{2}^{x} + log_{2}^{y}$
+
+so basically I just need to see if y is bigger than $\sqrt{2}$ or not which is basically 
+
++ 1.4142135623730951 (Dec) or
++ 1.0110101000001001111 (Bin)
+
+And since I will limit the input to 20 bit (actually the range is representable within 18 bit), this comparison should be totally enough
+
+Just simply get N = $clog2(xy), depends on the top 19/20 bit the comparison should be able to give the output value as N or N-1. 
+
+
