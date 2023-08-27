@@ -3790,6 +3790,14 @@ Will have to add real memory files and spikes to test in details.
 
 This will be generated today.
 
+Just generated the needed weight_index in the weight memory and the corresponding neuron index.
+
+will push this to my repository.
+
+But vivado 2015 is complaining the error "sigsegv", which I do not have with vivado 2020. 
+
+So I will wait till tomorrow for the follow up.
+
 
 ## 25 Aug
 
@@ -3853,5 +3861,16 @@ so basically I just need to see if y is bigger than $\sqrt{2}$ or not which is b
 And since I will limit the input to 20 bit (actually the range is representable within 18 bit), this comparison should be totally enough
 
 Just simply get N = $clog2(xy), depends on the top 19/20 bit the comparison should be able to give the output value as N or N-1. 
+
+Still I tried to run the simulation again on linux server, but it is still complaining that error.
+
+I will generate the file again on my mac and see. 
+
+Found the bug, it is actually the initialisation process of the memory that was wrong, I used the wrong name for initialisation process.
+
+![Initialisation was wrong with the use of a wrong name for memory](./img/Bug_was_found_it_was_the_memory_initialisation_25_Aug.png)
+
+
+
 
 
