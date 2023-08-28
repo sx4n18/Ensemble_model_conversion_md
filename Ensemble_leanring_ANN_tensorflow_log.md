@@ -3871,6 +3871,45 @@ Found the bug, it is actually the initialisation process of the memory that was 
 ![Initialisation was wrong with the use of a wrong name for memory](./img/Bug_was_found_it_was_the_memory_initialisation_25_Aug.png)
 
 
+## 28 Aug
+
+Now that the second layer is also finished, I should make the modification on the first layer so that it could actually generate spikes, which should not be too difficult.
+
+Added the extra spike_out and spike_AER port to pass on the data from first layer to the second layer. Not sure if it would work with the second layer, will have to check the second layer's simulation again.
+
+This modification keep the spike_out signal and spike_AER valid at the same time and changed the spike_AER to 63 at other time, the simulation shows that the design at the second layer is still capable of handling this kind of input. But probably it will be best to keep the spike_AER stable the whole time.
+
+I will change the design in the first layer to keep spike_AER stable the whole time to a value and only change when spike_out is flagged.
+
+But because the spike was generated inside the IF neuron unit, I could not keep them synced at the same time. I need another register to remember the spike_AER value when the spike is generated. To keep them synced and stable I have to do the design as in the figure:
+
+![spike out and spike AER synchronisation](./img/Spike_AER_and_spike_out_synchronisation_28_Aug.png)
+
+It has been proven working in the simulation.
+
+Now I just have to integrate these two layers together and run more top level simulation.
+
+Will do a top level encapsulation for the first layer and second layer and then run the inter-layer simulation!!!
+
+While I was doing the test for first layer's encapsulation I realised that I have not done anything to the signal current_step_finished.
+
+This signal should flag the completion of the 4 time steps' computation.
+
+Will also check if the spikes generated were correct.
+
+Yes, the spikes generated were all correct.
+
+I could simply add another state to mark the finish of 4 time steps, at the moment once the 4 steps finishes, it will reset the whole voltage memory to initialise the generation layer. could replace the state Init with completion and flag the current_step_finished at that state.
+
+Now it will flag up at state 9 to let the outside know that the computation has finished.
+
+Will verify now at the top encapsulation level again, it should be ok.
+
+Realised that I did not reset the second layer since it does not know when to stop computation, therefore, I need to add another state evaluate for getting the winner of the inference and initialise the voltage memory at the same time and go back to IDLE state to wait for spikes.
+
+
+
+
 
 
 
