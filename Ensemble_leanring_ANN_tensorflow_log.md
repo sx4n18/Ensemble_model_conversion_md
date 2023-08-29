@@ -3949,3 +3949,18 @@ Now that the state has been cleaned up and modified, I could do the encapsulatio
 
 Will do that today and test it.
 
+Tested the top encapsulation of the second layer it showed the same behaviour as in the testbench I wrote before, will now connect both layers and test them in a test bench.
+
+Have connected both layers and make it run for the inference of the first sample, it gave me the results of 13 will check if it matches the software implementation.
+
+Yes it is correct, the firs sample label is 13. Have not checked if it matches the first net's prediction but it should be the same!
+
+![the simulation on both layers gave the correct inference for the first sample](./img/success_on_first_sample_inference_with_correct_label_29_Aug.png)
+
+
+And the whole inference for one sample is just above 1 ms.
+
+Will now think about the implementation of the preprocessing layer and how I could validate the results on FPGA.
+
+
+
