@@ -3908,8 +3908,44 @@ Will verify now at the top encapsulation level again, it should be ok.
 Realised that I did not reset the second layer since it does not know when to stop computation, therefore, I need to add another state evaluate for getting the winner of the inference and initialise the voltage memory at the same time and go back to IDLE state to wait for spikes.
 
 
+## 29 Aug
+
+Start working on the evaluation states for the second layer.
+
+Since the controller so far is trying to read the content in the voltage memory, it only has 1 bit control signal, which could only mean direct writing or do nothing. In the mean time, the read access is not granted.
+
+So the voltage memory control signal should be at least 2 bit, [1:0] voltage_mem_ctrl.
+
+The state machine has the highest priority to access the voltage memory, to either write into the memory to initialise or read the final voltage to evaluate the inference. This control should be flagged by voltage_mem_ctrl[1].
+
+If voltage_mem_ctrl[1] == 0, it will allow the export_voltage_delayed to write the post-processed voltage back into the voltage memory.
+
+But this sounds like extra logic, I could simply just let the state machine control the voltage memory, either to initialise or save temporary voltage memory. But I will keep the export_voltage signal, all I have to do is turn on the write enable the clock after export_voltage is flagged. This should be simpler. But another thing is the addr for the voltage memory. 
+
+So far the addr could be:
++ incremental addr during initialisation
++ col index from the weight memory
++ incremental addr during evaluation
+
+The second solution could not address this issue, therefore I will do the first solution until a simpler solution pops up.
+
+The access to voltage memory should be granted to:
++ state machine during initialisation for write
++ neuron and weight component during computation for both read and write
++ state machine during evaluation for read
 
 
+| voltage_mem_ctrl |  [1]                    |                                            | 
+|------------------|------------------------ |--------------------------------------------|
+|            [0]   |   1                     |  0                                         |
+| -----------------|-------------------------|--------------------------------------------|
+|            1     |   state machine write   |  don't care, leave it for other component  |
+|            0     |   state machine read    |  don't care, leave it for other component  |
 
 
+The state machine has not been updated to evaluate the final results.
+
+Now that the state has been cleaned up and modified, I could do the encapsulation of the second layer now.
+
+Will do that today and test it.
 
