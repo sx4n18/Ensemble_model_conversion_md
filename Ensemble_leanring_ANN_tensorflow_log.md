@@ -3963,4 +3963,19 @@ And the whole inference for one sample is just above 1 ms.
 Will now think about the implementation of the preprocessing layer and how I could validate the results on FPGA.
 
 
+## 30 Aug
+
+Will start working on the preprocessing layer and the top level state machine from today.
+
+The log base 2 implementation has been finished and tested. it is giving the rounded results I need.
+
+Will now move on to the subtraction side.
+
+Thought that I need 2 registers for diagonal 0. But to be simpler I could just simply use 1 and subtract the Q with D
+
+But simulation shows that this might bring metastability cus the input is unstable.
+
+So it might be best to use 2 for diagonal 0, 3 for diagonal 1, 4 for diagonal 2 and so on..... till 22 registers with diagonal 20
+
+This is also easier to implement with the preprocessing module cus I do not need to make exception for diagonal 0.
 
