@@ -3979,3 +3979,24 @@ So it might be best to use 2 for diagonal 0, 3 for diagonal 1, 4 for diagonal 2 
 
 This is also easier to implement with the preprocessing module cus I do not need to make exception for diagonal 0.
 
+
+## 31 Aug
+
+Designed the state machine for the preprocessing layer, but the simulation is against my understanding on vivado 2015.
+
+Tried the same code with Xcelium, it is giving me different result, but is the result I want.
+
+Not sure what happened there. But this shall get verified on vivado 2020 again.
+
+In the design, the state shall change from IDEL to wait_4_reg when the input trans_start was flagged. But the simulation in vivado changed the current state the moment trans_start turns 1.
+
+![vivado 2015 is giving dodgy simulation results](./img/vivado_2015_simulation_result_giving_weird_behaviour.png)
+
+However, the same code would run as expected in cadence Xcelium
+![Cadence is giving the correct result](./img/Xcelium_simulation_test_on_log_data_31_Aug.png)
+
+This is confusing. I will get this verified tomorrow on the linux laptop with vivado 2022.
+
+Will continue with more higher level of state machine now.
+
+
