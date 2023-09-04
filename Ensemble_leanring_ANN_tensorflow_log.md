@@ -4039,5 +4039,49 @@ From one test bench drafted, it seems that it is working well.
 Will give it another test case to see if it is still working.
 
 
+## 2 Sep
+
+Since the inter layer state machine has been established and tested, now I should connect the three components and start a real sample test.
+
+Randomly chose a sample indexed 1178, and the results in the simulation showed the label correctly! This is big step!
+
+![correct simulation results given for sample 1178](./img/correct_inference_with_both_layers_connected_and_preprocessing_3_Aug.png)
+
+Following next should just be the ensemble implementation with other 19 nets and the final voting mechanism.
+
+Had a quick look at the UART axi lite IP and thought probably I could use this IP for my final implementation.
+
+
+## 4 Sep
+
+Now I will work around the implementation of the whole ensemble and final voting mechanism.
+
+Saw this link online saying you could simply pass the file name into the design as a parameter, this would be hugely helpful! I just need to parametrise my bin_ratio_net design so that it I could pass in different memory files to different ROM for the ensemble!
+
+[The approach to initialise multiple ROMs with different files](https://support.xilinx.com/s/question/0D52E00006hpXBzSAM/initialization-of-multiple-ram-memories-reading-from-different-mem-files?language=en_US)
+
+So there are couple of designs need to be parametrised:
++ Spike_generation_TOP.v
++ offset_memory.v
++ weight_mem.v
++ Spiking_no_fire_TOP.v
++ CSC_weight_mem.v
++ index_mem.v
+
+Now changed the parametrisation in Spike_generation_TOP.v, offset_memory.v and weight_mem.v. Will change the file name of the memory file to see if it works.
+
+reran the simulation after modification, and it seems it is working fine, will now also make changes to the second layer.
+
+![parameters have been reformatted to be used as input](./img/parameterised_file_name_initialisation_for_sub_memory_modules_4_Sep.png)
+
+It could be seen from the simulation above that the file name has been reformatted as an extra long array to be passed into the module as a parameter.
+
+And the final simulation results have been correct, this means the individual net could be totally parametrised and included in the ensemble net without manually repetitive definition.
+
+Will now generate all the needed memory files and build the ensemble on top of it.
+
+
+
+
 
 
