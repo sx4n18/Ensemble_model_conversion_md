@@ -4081,7 +4081,47 @@ And the final simulation results have been correct, this means the individual ne
 Will now generate all the needed memory files and build the ensemble on top of it.
 
 
+## 5 Sep
 
+Will generate all the memory files and stack all the bin-ratio net together today and do a testbench on the top level.
 
+Will also think about how the voting mechanism could be built.
+
+Saw the warning log complaining that the mem files could not be read, and it is displaying a tofu block after the naming. I am worried that the file name parameter was not correctly passed since the first network was reading the mem file that has no suffix.
+
+Realised that I need to concatenate ascii, not strings and parameters.
+
+Wrong way to pass in the file name:
+
+```verilog
+//parameters to be passed into the instants
+localparam diagonal = 1023 - INPUT_SIZE;
+localparam offset_mem_file_name = {"offset_mem", diagonal, ".mem"};
+localparam CSR_mem_file_name = {"CSR_weight", diagonal, ".mem"};
+```
+
+Correct way to pass in the file name:
+
+```verilog
+
+//parameters to be passed into the instants
+localparam  [7:0] diagonal = 1023 - INPUT_SIZE;
+localparam  [7:0] ascii_index = "A" +diagonal;
+localparam offset_mem_file_name = {"offset_mem", ascii_index, ".mem"};
+localparam CSR_mem_file_name = {"CSR_weight", ascii_index, ".mem"};
+
+```
+
+And because in the ascii table there is only 10 numbers 0~9, the character after 9 is : ; < = >. These could not be used in the naming of a file.
+
+Therefore I will use the capital letters from A to T as the suffix to name the memory files.
+
+Successfully reran the simulation of the first net after changing the file parametrisation.
+
+Will generate the memory files now, since the debugging of the ensemble state machine will be dependent on the actual working of each individual nets.
+
+All the memory files were loaded correctly, elaboration stage did not raise alarming warnings or errors.
+
+The whole net is quite big.
 
 
