@@ -4125,3 +4125,82 @@ All the memory files were loaded correctly, elaboration stage did not raise alar
 The whole net is quite big.
 
 
+## 6 Sep
+
+Will try to do the test today for the ensemble net.
+
+But before that I will test each net individually, and also see if each net could correctly do the inference consecutively.
+
+![two consecutive samples tested correct for one bin-ratio net](./img/two_consecutive_samples_test_on_one_net_shows_correct_results_6_Sep.png)
+
+Just when I am doing the test for diagonal 10, it has come to me that the result for the second net is not correct. It is giving class 0 instead of 12. Then I realised that the max activation has been reset to 0, which is not the possible minimum activation. Therefore, 0 might be the biggest activation in this case when every other neuron is negative.
+
+Will fix this now, could probably initialise the max_activation to lowest possible value for state machine to compare.
+
+Have now fixed the initialisation of the max_activation to 16'h8000, which is the lowest representable value with 16 bits.
+
+Will rerun the test and see how that gets.
+
+And this has been fixed, the diagonal 10 is also giving the correct inference now.
+
+One more test with diagonal 15 and see if it gives the correct answer.
+
+Yes answers have been correct for diagonal 15 too.
+
+Will now try to simulate the whole ensemble and see how that goes.
+
+So far the testing has been successful towards the inference of the ensemble net.
+
+Will now start looking at the AXI UART interface.
+
+That is is today for hardware implementation.
+
+## 7 Sep
+
+Will start to check out the AXI interface and on board implementation and measurement.
+
+Had a close look at the AXI lite interface, will now test out the FPGA implementation and develop a AXI compatible reader module that could read out data.
+
+Built up the design but somehow the UART could not be recognised by my laptop, will check closely with the manual and see why is that.
+
+Looks like that the laptop needs a driver to recognise the port.
+
+Will download a driver and teraterm on linux to see how that goes.
+
+
+## 8 Sep
+
+Had a look and found that TeraTerm is not available in both Mac and Linux.
+
+Tried it on my mac, but it does not work, could not find the port.
+
+However, it seems it could work on Linux.
+
+And the ports are called /dev/ttyUSB0 and /dev/ttyUSB1
+
+Even though detected, the port could not be opened for some reason.
+
+Installing driver for linux now.
+
+Wait... I think the driver is already a built-in feature in linux and the thing I downloaded is a linux kernel.
+
+Now I think the port is actually working, but somehow the data could not be read out, will have a closer look at the AXI port, I will add another ILA.
+
+Now it has been made sure that the button works the port works, there are actually data being sent in, but readout is the trouble.
+
+Adding another ILA for axi interface now.
+
+After observing the ILA I found that the behaviour of my state machine might be wrong. will do a simulation for the behaviour now.
+
+Did a simple simulation and found out the interface design was wrong, my signal m_axi_arvalid and m_axi_rready could not be dropped.
+
+Realised my code could not jump to next state even when m_axi_arready was raised. Think it was my typp that I wrote m_axi_arready as m_axi_awready, now the behaviour is correct.
+
+Now that I have corrected the behaviour of the statemachine, I will do the test again to see if I could extract the data from UART IP.
+
+
+
+
+
+
+
