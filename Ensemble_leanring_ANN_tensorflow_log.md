@@ -4184,6 +4184,14 @@ Installing driver for linux now.
 
 Wait... I think the driver is already a built-in feature in linux and the thing I downloaded is a linux kernel.
 
+#### Just need to remember to add the read and write feature for the ports every time before transaction or physical connection.
+
+use the following command should do the trick:
+
+```bash
+chmod 666 /dev/ttyUSB1
+```
+
 Now I think the port is actually working, but somehow the data could not be read out, will have a closer look at the AXI port, I will add another ILA.
 
 Now it has been made sure that the button works the port works, there are actually data being sent in, but readout is the trouble.
@@ -4197,6 +4205,63 @@ Did a simple simulation and found out the interface design was wrong, my signal 
 Realised my code could not jump to next state even when m_axi_arready was raised. Think it was my typp that I wrote m_axi_arready as m_axi_awready, now the behaviour is correct.
 
 Now that I have corrected the behaviour of the statemachine, I will do the test again to see if I could extract the data from UART IP.
+
+The ILA debugger showed that the read has been successful, but as an FPGA design it failed.
+
+![UART axi lite IP implementation](./img/successful_read_unsuccessful_FPGA_implementation_8_Sep.png)
+
+This is because I simply used the push button as the input and the state machine will simply just run in a very big loop.
+
+Because the button was being pressed the whole time.
+
+But the AXI interface has been correct!
+
+![Another ILA verified my thoughts where read signal is 1 all the time](./img/Start_from_time_T_the_button_was_pressed_but_it_keeps_reading_data_from_UART_8_Sep.png)
+
+But this should not be the focus of this implementation, since I will not be using push buttons as the actual input.
+
+Another test I could do is to send 16 characters and see if I have to change the address to read all the content in the fifo.
+
+![ILA 0 confirming that a burst of data could be read from FIFO](./img/FIFO_read_test_for_uart_lite_axi_IP_8_Sep.png)
+
+![ILA 1 confirming that the burst of data was actually saved in FIFO](./img/all_6_characters_have_been_read_successfully_with_the_reading_scheme_from_FIFO_8_Sep.png)
+
+
+Yes, I could send in multiple characters and read one after another without changing the read address.
+
+Will have think about the big architecture here for my ensemble validation.
+
+
+
+## 11 Sep
+
+Realised that I may have insecure read or write behaviour if I am simply just reading and writing to the UART lite IP since I never considered the FIFO status. Whether if it is full or empty is key to the accuracy of the reading and writing process.
+
+Like what happened during last implementation, since it has not checked if the fifo is full or not, it will simply read whenever the read_signal is high. The IP will then output data along and output 0 after the fifo is empty.
+
+I should check status register in the IP before any reading or writing.
+
+I will just check the status register first and see if I need to do anything before enabling the register cus I think the document says the interrupts need to be enabled.
+
+No surprise all zeros was read out in this case, will have to write the control register at the initialisation stage.
+
+Now developing writing cycles.
+
+Two issues found in this round of implementation:
+
++ The address was not reset back to 8 for stat reading after a loop of data read from fifo
++ If I send a string of characters, they will be listed in the fifo and wont be rid of
+
+But I also saw that the rresp will give me a signal together with the data. If the data is valid, it will be 0, if not, it will be 2. This could be helpful. 
+
+At least the configuration has been successful it seems.
+
+After fixing the issue with address not changing, the data now has been successfully transmitted.
+
+Have now developed the byte2tribyte converter to play a good input module.
+
+Now I will just have to do a bit more modification on the main AXI reader state machine and then connect the component together.
+
 
 
 
