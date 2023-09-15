@@ -4263,6 +4263,174 @@ Have now developed the byte2tribyte converter to play a good input module.
 Now I will just have to do a bit more modification on the main AXI reader state machine and then connect the component together.
 
 
+## 12 Sep
+
+Tried to integrate every component with IP integrator to make a block design, but the laptop keeps freezing up while running.
+
+Also it seems that when I add another IP in the block design, the IP will be created again. That makes the whole project really big. Will delete the block design and search for other ways.
+
+Will now try to do a simple verilog top wrapper to manually connect them.
+
+Also while I am doing the integration I realised that I could not simply use a button as reset. The reset has to be synchronised by the system, and the button assigned on the FPGA could be connected directly since it has already been synchronised.
+
+## 13 Sep
+
+updated the design of the byte_2_tribyte so that it could use BRAM to synthesise the internal memory.
+
+vivado keeps freezing ubuntu while I am running the synthesis, this is frustrating. It might be the issue with ram being too small....
+
+Vivado keeps crashing and freezing up the laptop, I will try to do just 10 nets in the ensemble for now, in the mean time, I will see how much accuracy will be in this case.
+
+It still failed to synthesise, will drop down to 5 nets and see.
+
+Realised that my way of describing the state machine is not really synthesisable, even though it could give correct behaviour. Cus I split the register update with the main asynchronous reset block. This would cause the multi driven nets issue.
+
+Now I have merged the state machine design with just one sequential block.
+
+Should probably rerun the simulation to check the behaviour.
+
+Still have no idea why vivado keeps removing the state register.
+
+Now I am just doing loads of rerun of synthesis and rewrite my code.......
+
+Finally get the synthesis finished and now testing the inference of just one sample.
+
+Tried out the first sample and realised that it might be too fast to have crammed up the buffer, so I slowed the data sending to 0.5 seconds every data and then remembered why it was slow for my last project.....
+
+I need to redesign the AXI reader unit to give feedback to host every time after a data has been sent so that it does have to wait for way too long.....
+
+
+now this is just one sample, I shouldn't have to wait for tooo long before the results come back.
+
+OK it is failing at the moment, I got nothing back and the LED was not lit, there must be data loss during the transfer.
+
+Will have to do more testing tomorrow I'm afraid.
+
+And then I noticed there were three different ports when I was connecting the cable,
+
+/dev/ttyUSB0 /dev/ttyUSB1 /dev/ttyUSB2
+
+But now there are just two 
+
+/dev/ttyUSB0 /dev/ttyUSB2
+
+did I use the wrong port?
+
+Will check again tomorrow.....
+
+
+## 14 Sep
+
+Now I will first run some simulation I have done previously and check if the behaviour has been changed after the modification.
+
+First is Byte_2_tryte simulation, the simulation looks just as expected as before.
+
+Next will be the test on the both layers connected on one sample.
+
+Ok, apparently, I kinda broke the layers with yesterday's modification, no this may not be true, cus I have modified the memory file name.
+
+I will run an actual ensemble testbench and see the details.
+
+Yes I broke my design with yesterdays modification, will now repeat the previous process and do the testbench one after another.
+
+Start from spk_gen_layer, spike_AER has been locked at 0, which is not right of course also off_set_mem_addr_did not change at all the whole time.
+
+realised there are at least 2 bugs to be removed before spk gen state machine could work again.
+
+Think I should redesign this state machine, changed the place where I update the hidden_neuron_cnt and time_step_cnt.
+
+Think I just fixed the controller state machine design, will now check if the second layer is also working.
+
+It looks like it is working, will now test both layers connected on one sample.
+
+Seems like it is working with just one sample.
+
+Will now try it on a higher level with one net with preprocessing layer included.
+
+It looks like it is working.
+
+Now will try the whole ensemble simulation.
+
+The ensemble is also working, also realised I need to make changes to ensemble_net_state_machine to make it parametrised.
+
+Will now try to do a simple test on ensemble of 5.
+
+And yes it is scaling fine.
+
+Coming up next I will insert ILA into the FPGA implementation and see if the transmission is ok.
+
+Now I am regenerating the top ensemble_testing bitstream with ILA debugger.
+
+After this I will add the feedback mechanism to AXI reader so that UART could be more efficient.
+
+It turns out the port /dev/ttyUSB2 is the port for JTAG.
+
+UART ports are /dev/ttyUSB0 and /dev/ttyUSB1
+
+Just did the tests on board, and now it is at least giving me results, even though it is wrong hahaha, This at least means that all data has been received without losing packets.
+
+Will test another sample and then think about handshake on UART, second sample test gives correct results.
+
+Just found another simple way to transfer the bytes simply just convert the int to bytes into 3 bytes.
+
+e.g.
+
+```python
+int_to_transfer = 988
+bytes = int_to_transfer.to_bytes(3, 'little')
+port.write(bytes)
+```
+
+Tested out couple sample and they are all right. Will now do the hand shake implementation so that I could batch run the UART transmission without waiting.
+
+
+Tried to add the signal trybytes_rec to indicate that 3 bytes have been successfully received by organiser, but the signal seems to have been lost during the read cycle. This is very likely to happen since this signal only last 1 cycle.
+
+Also I do not know why but the signal has been tied to 1 during FPGA implementation but works fine in simulation.
+
+
+## 15 Sep
+
+Just thought of a new solution to the issue I might have in this case.
+
+I could simply make the organiser hang a signal until it has been answered by AXI reader.
+
+So now trybytes_rec will be like an interrupt signal given by organiser, and will only be dropped if answered by AXI reader, so AXI reader needs another signal called ack_tryte.
+
+Will now try to implement this and do the simulation.
+
+Have just updated this design on organiser, will now update the AXI reader.
+
+Also just updated the axi reader to insert one more state before writing cycle if there is an interrupt simply just to answer the interrupt given by organiser.
+
+Also just ran a simulation on the top top level and found that it is working ok, will now run synthesis.
+
+I could not receive the wanted handshake feedback, will now add another ILA to see what is going on inside.
+
+Also saw that at IDLE state I simply finished this state by assigning write_data_reg with 0.... of course it wont be connected....
+
+Cool think I just fixed the issue and now it is running on pretty fast!
+
+Will time the testing next time!
+
+Followed by this I will see how I could set up the run at our host so that I could have the whole ensemble synthesised.
+
+![Have managed to make it run on FPGA even though the accuracy is not as good](./img/running_successfully_on_uart_15_Sep_with_5_nets.png)
+
+This accuracy will be verified with my software model.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
