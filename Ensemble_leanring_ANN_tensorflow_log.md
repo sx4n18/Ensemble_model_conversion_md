@@ -4478,10 +4478,74 @@ problematic raw_sample\[111\] = 127, which should give out 7, but my simulation 
 
 Unsurprisingly, it also failed with data 1023
 
+Have just redesigned the log module, this new algorithm has been verified by my python script and now trying to do a comprehensive assertion based testbench.
 
 
+## 18 Sep
 
+Will run the ensemble net of 5 simulation on the "problematic" sample.
 
+Have just run the simulation and think this behaviour has been corrected...
+
+But to make sure, I will still run a comprehensive test bench on the log module.
+
+Since there is no log2 function in systemverilog, I used log10(X)/log10(2) instead, it is working perfectly fine.
+
+Did the simulation comprehensively, and it seems that it did not raise any error or alarm.
+
+![simulation on the test for log module](./img/simulation_waveform_4_log_module_18_Sep.png)
+
+Will now rerun the synthesis and validation.
+
+It should give the same results this time as in 91.33%.
+
+Now it is reporting that my code in not synthesisable....
+
+Complaining that loop condition does not converge after 2000 loops....
+
+Mainly because it thinks the for loop is problematic,
+
+Since all I need is simply just to get the bitwidth it needs in the for loop, I used a more brute-force switch case...
+
+![casex used for brute force checking how many bitwidth I need to represent a number](./img/brute_force_switch_case_to_get_bitwidth_of_the_number_18_Sep.png)
+
+Will now verify this again... No error again.. will now try to synthesis again.
+
+OK, now is the second time validating the design....
+
+The results are back, seems like my modification has fixed most errors and accuracy differences in the FPGA.
+
+But the accuracy is still not 91.33% but 91.26%... 
+
+I'm wondering what this is.... Will repeat the testing and see what happened with which samples exactly.
+
+I am getting there!
+
+just repeated the test and the results accuracy stays the same, this would mean that this difference is reproducible.
+
+Will not get down to analyse the error here.
+
+From the test it showed that there are some samples FPGA is making correct inference while SNN is failing and vice versa.
+
+I will check the ones where SNN is definitely wrong.
+
+According to the SNN software results, it should give me [16, 7, 17, 17, 17].
+
+But I am getting [3, 7, 17, 3, 17], will check the spike AER in net 0 and 3.
+
+By observation, net 0 is giving one extra spike than software that is spike for neuron 33, but net 3 gives exact same spikes.
+
+Had a really closer look at the spk_generation layer net 0, the reason why it is giving the extra spike is the boundary verdict, the activation at neuron 33 in last time step is 127, however, my threshold is set to 127, whether it should spike or not is slightly different. My FPGA implementation will give a spike, but it seems my software will not. 
+
+After verification on the python script, I could conclude that the result is 3 because of one last spike 33 for the case of net 0.
+
+Will now check net 3's case.
+
+As for net 3, I do not see any difference with my FPGA results and the python script results. Not sure if it is because of the spiking jelly package.
+
+Will check closely how spikingjelly gives the final results.
+
+Think these are minor errors though, they are not too important. And I can conclude for today.
 
 
 
