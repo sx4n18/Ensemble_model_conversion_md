@@ -4411,7 +4411,7 @@ Also saw that at IDLE state I simply finished this state by assigning write_data
 
 Cool think I just fixed the issue and now it is running on pretty fast!
 
-Will time the testing next time!
+Will time the testing next time! (Roughly 7-8 mins for all 1350 samples)
 
 Followed by this I will see how I could set up the run at our host so that I could have the whole ensemble synthesised.
 
@@ -4419,9 +4419,64 @@ Followed by this I will see how I could set up the run at our host so that I cou
 
 This accuracy will be verified with my software model.
 
+My worst nightmare has just happened.....
+
+My software model gives correct inference and a significant higher accuracy over my hardware implementation, this is devastating....
+
+There must be some errors in the ensemble net that I have overlooked....
+
+Think I should first have a record of the results from hardware implementation, and compare the ones that software made correct yet hardware is failing. Then run simulation on the ensmeble and check details like activation values, spike_AERs etc.....
+
+Will now rerun the FPGA validation and keep the record of the results, the analysis of the failing samples on sofware side could be finishd this weekend.
+
+Have also made sure the randomising and shuffling of the samples are identical.
+
+To think about it, I think this is actually promising, I have basically had most of the samples correct, which means the idea behind the hardware is actually working. Now I just need to fintune the hardware model.
+
+Have just finished the testing again, will update the test records to the git repo.
+
+Will also start writing up the draft this weekend.
 
 
+## 17 Sep
 
+Found 214 inconsistency from the SNN software implementation, will now try to simply pick one and do a simple simulation on the ensemble net in vivado and compare the detailed activation.
+
+My thought is that it might be the threshold I set for the neuron, in software it was 63.5 (127/2), but in FPGA it was 63.
+
+Now picking one that is far from the correct answer and do the simulation. 
+
+![inconsistency between FPGA and SNN simulation index 147](./img/one_sample_that_shows_the_inconsistency_index_147.png)
+
+In the simulation, it is consistent with the FPGA validation results.
+
+![Simulation on the "problematic" sample index 147](./img/bin_ratio_ensemble_simulation_on_problematic_sample_147.png)
+
+In the simulation, the ensemble of 5 net gives inference of 14, 16, 10, 11, 11.
+
+Will now first compare the preprocessed results and the one I obtained from python.
+
+Compared the first 150 preprocessed sample and found that the results are slightly different from the preprocessed data....
+
+![python preprocessed data](./img/python_preprocess_data_for_diaognal_0_bin.png) 
+
+![waveform simulation on the raw data](./img/simulation_waveform_on_preprocessed_data_17_Sep.png)
+
+So.... it might be that the preprocessing has some bug in here....
+
+The problematic processed data is number 110, 111, 115, 116 as indicated by the simulation, as for the first diagonal, this would mean that for raw_sample: 
+
+$processed_dat[110] = log_2^{raw_sample[111]+1} - log_2_^{raw_sample[110]+1}$
+
+$processed_dat[111] = log_2^{raw_sample[112]+1} - log_2_^{raw_sample[111]+1}$
+
+$processed_dat[115] = log_2^{raw_sample[116]+1} - log_2_^{raw_sample[115]+1}$
+
+$processed_dat[116] = log_2^{raw_sample[117]+1} - log_2_^{raw_sample[116]+1}$
+
+problematic raw_sample\[111\] = 127, which should give out 7, but my simulation gives out 6, which is why it failed. Same applies for raw_sample\[116\].
+
+Unsurprisingly, it also failed with data 1023
 
 
 
