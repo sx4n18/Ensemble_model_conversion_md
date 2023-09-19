@@ -4550,6 +4550,15 @@ Will check closely how spikingjelly gives the final results.
 Think these are minor errors though, they are not too important. And I can conclude for today.
 
 
+## 19 Sep
+
+As for the differences between spikingjelly and FPGA results, think I could do a couple of analysis:
+
++ list the inconsistency between FPGA and SpikingJelly and categorise them into FPGA correct and SJ correct see how much the impact it brought to this inconsistency.
++ As for the inconsistent samples, rerun Spikingjelly simulation and try to save the detailed activation (mem potential) and spikes generated, cus there is such sample where I could not replicate the result from spikingjelly using python script
+
+Will run the first analysis now:
+
 
 
 
