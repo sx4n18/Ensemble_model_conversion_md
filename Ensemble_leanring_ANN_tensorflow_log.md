@@ -4527,6 +4527,8 @@ Will not get down to analyse the error here.
 
 From the test it showed that there are some samples FPGA is making correct inference while SNN is failing and vice versa.
 
+![inference differences between FPGA and spikingjelly after log module fix](./img/problematic_samples_after_log_module_fix_18_Sep.png)
+
 I will check the ones where SNN is definitely wrong.
 
 According to the SNN software results, it should give me [16, 7, 17, 17, 17].
