@@ -4559,6 +4559,43 @@ As for the differences between spikingjelly and FPGA results, think I could do a
 
 Will run the first analysis now:
 
+Found that in the inconsistent cases, there are cases when FPGA is correct and there are cases when spikingjelly is correct:
+
+![Inconsistency breakdown between FPGA and SJ](./img/inconsistency_component_break_down.png)
+
+It could be observed that there are 74 inconsistent samples 46 samples where FPGA is wrong where 28 samples Spikingjelly is wrong.
+
+Now check closely of the activation and spikes in the spikingjelly.
+
+Just realised while I am rewriting the script for spikingjelly rewrite, I have not been using the newest set of weights for the FPGA implementation...
+
+The SNN SJ implementation has been using the weights in the folder ./pruning_SNN while I extracted the weights from ./quant_pruned_SNN
+
+Will now rerun the SJ simulation on the weights lies in ./quant_pruned_SNN and compare again with FPGA results.
+
+Good news, with the FPGA weights loaded, it gives the same accuracy as my FPGA implementation!
+
+This would mean that if I load the newer weights, I would get slightly higher accuracy.
+
+This is promising!!!!!
+
+The inconsistency issue has been fixed!
+
+Since I have been using the old weight, I wonder if I need to update the weights on FPGA and rerun again.
+
+Wait... I thinkg the foler "pruning_ANN" contains the weights and threshold that are not quantised.... since I just observed the threshold and they are all in floaintg points.
+
+This explained why there's the accuracy gap, and I do not need to reimplement the FPGA memory files again, they are all good.
+
+So actually my maximum accuracy from the quantised ensemble SNN is 97.04%
+
+I am happy now.... Think I am ready to start writing up.
+
+Probably all there's left is the power measurement and see if I could probably synthesis 10 nets if possible.
+
+
+
+
 
 
 
