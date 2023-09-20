@@ -4594,6 +4594,49 @@ I am happy now.... Think I am ready to start writing up.
 Probably all there's left is the power measurement and see if I could probably synthesis 10 nets if possible.
 
 
+## 20 Sep
+
+Since memory is the limit here for synthesis, I have added more swap space from 1G to 4G, will see if I could at least synthesis 10 nets ensemble
+
+
+First attempt to see if I could synthesis 10 nets
+
+Nope, 4G is not enough for this case.
+
+Will now double the swap space to 8G.
+
+Second attempt to run synthesis with 10 nets ensemble
+
+Finished the synthesis for 10 nets it used 4.3G swap space to finish.
+
+![10 nets of implementation of the ensemble](./img/10nets_implementation_onVCU108_20_Sep.png)
+
+Seems that there should still be space for another 10 nets.
+
+The power consumption for this bin ratio system is listed below:
+
+![power consumption for the nets of 10 breakdown](./img/10nets_power_consumption_breakdown_2_Sep.png)
+
+But our core implementation bin_ratio_ensemble_net would only cost:
+
+![Power breakdown on the actual functional module bin ratio net](./img/power_estimation_breakdown_on_ensemble_of_10_20_Sep.png)
+
+
+Now I will test the performance of this nets of 10, it should give the same results as my software.
+
+The final accuracy for 10 nets should be 95.48%
+
+![10 nets ensemble gives same accuracy as my SNN software simulation](./img/10_nets_FPGA_validation_gives_same_accuracy_as_my_software_20_Sep.png)
+
+I could probably try if I could synthesis the ensemble of 20 with just 8G of swapfile.
+
+But in the mean time, I will look into the sysmon settings and how it works with the FPGA.
+
+It finished the synthesis with maximum usage of swap file at 5.1G !
+
+![Total usage of the implementation for the ensemble of 20 nets across VCU108 FPGA](./img/ensemble_20_imp_usage_across_vcu108_20_Sep.png)
+
+
 
 
 
