@@ -4637,6 +4637,10 @@ It finished the synthesis with maximum usage of swap file at 5.1G !
 ![Total usage of the implementation for the ensemble of 20 nets across VCU108 FPGA](./img/ensemble_20_imp_usage_across_vcu108_20_Sep.png)
 
 
+## 21 Sep
+
+Will look closely at the sysmon usage and how I could test my design and give an accurate power measurement using this tool.
+
 
 
 
