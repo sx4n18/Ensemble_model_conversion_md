@@ -4642,8 +4642,59 @@ It finished the synthesis with maximum usage of swap file at 5.1G !
 Will look closely at the sysmon usage and how I could test my design and give an accurate power measurement using this tool.
 
 
+## 3 Oct
 
+Had a chat with Cristian, and he suggested use XPE instead of sysmon to have an accurate power measurement.
 
+This has been used in Mike's work and Cris believed it is good enough.
+
+Basically test the net using a sample doing post-implementation simulation,  this simulation is super slow but will use the real gate. The switching activity file  will be generated after the simulation. Then load this .saif file into the power analyser, it will give a power report that with high confidence level.
+
+I have the power analysis now with confidence level of high. But it seems that the power consumption mainly comes from spk_gen_unit and mainly the spk_gen state machine
+
+This is understandable, because the main computation comes from spk generation.
+
+Here is the post-imp resource usage on board:
+![Resources usage here on board](./img/post-implementation-usage-of-resources-3_Oct.png)
+
+And here is the power measurement chart after SAIF being inserted:
+![Power consumption chart after SAIF](./img/power_measurement_after_SAIF_used_3_OCT.png)
+
+Here is the power consumption breakdown from each net:
+![Power consumption breakdown to each net](./img/power_consumption_from_each_net_3_Oct.png)
+
+And here is the power usage breakdown in a single net:
+![Power breakdown in a single net](./img/power_usage_breakdown_inside_one_net_3_Octpower_usage_breakdown_inside_one_net_3_Oct.png)
+
+It could be seen that this design is not really energy efficient with all 20 nets inside with the dynamic power of 396mW.
+
+Static power actually measured every cell on board, considering that I only used around 11%. this number could probably goes lower to roughly 100mW for the resources I have used.
+
+So in total, this would add up to 496mW, but this is for all 20 nets.
+
+In my design one sample will take around 940us, that gives me the throughput of 1064 samples per second. That is 466 uJ/inf.
+
+But there are 20 nets, the operations it needed is:
+
+$[(\sum^{1023}_{i=1004} i*40)+40*18*20]*0.3$
+
+That is 247560 operations per sample.
+
+Wait... that is untrue.... because I have not considered time steps.
+
+It should be around 4 times that....
+
+The spk_gen part surely should be quadrupled, that is (1023+1022+1021+...+1004)\*40\*0.3\*4 = 972960
+
+As for the spikes there should be on average 34 spikes generated for each sample, each spike should invoke around 5.4 neurons to do the computation that is 34\*5\*20 = 3400
+
+In total that give us 972960+3400 = 976360 operations.
+
+I will leave out this part for now.
+
+That gives me 976,360 ops per 940 us, that is 1.04 e9 ops per second, which is 1038 MOPs/s, and that gives me 2.094Mops/(s\*mW)
+
+  
 
 
 
