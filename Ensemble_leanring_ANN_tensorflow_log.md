@@ -4466,13 +4466,13 @@ So.... it might be that the preprocessing has some bug in here....
 
 The problematic processed data is number 110, 111, 115, 116 as indicated by the simulation, as for the first diagonal, this would mean that for raw_sample: 
 
-$processed_dat[110] = log_2^{raw_sample[111]+1} - log_2_^{raw_sample[110]+1}$
+$$processed\_dat[110] = log_2(raw\_sample[111]+1) - log_2(raw\_sample[110]+1)$$
 
-$processed_dat[111] = log_2^{raw_sample[112]+1} - log_2_^{raw_sample[111]+1}$
+$$processed\_dat[111] = log_2(raw\_sample[112]+1) - log_2(raw\_sample[111]+1)$$
 
-$processed_dat[115] = log_2^{raw_sample[116]+1} - log_2_^{raw_sample[115]+1}$
+$$processed\_dat[115] = log_2(raw\_sample[116]+1) - log_2(raw\_sample[115]+1)$$
 
-$processed_dat[116] = log_2^{raw_sample[117]+1} - log_2_^{raw_sample[116]+1}$
+$$processed\_dat[116] = log_2(raw\_sample[117]+1) - log_2(raw\_sample[116]+1)$$
 
 problematic raw_sample\[111\] = 127, which should give out 7, but my simulation gives out 6, which is why it failed. Same applies for raw_sample\[116\].
 
