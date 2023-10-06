@@ -4655,16 +4655,18 @@ I have the power analysis now with confidence level of high. But it seems that t
 This is understandable, because the main computation comes from spk generation.
 
 Here is the post-imp resource usage on board:
+
 ![Resources usage here on board](./img/post-implementation-usage-of-resources-3_Oct.png)
 
 And here is the power measurement chart after SAIF being inserted:
+
 ![Power consumption chart after SAIF](./img/power_measurement_after_SAIF_used_3_OCT.png)
 
 Here is the power consumption breakdown from each net:
 ![Power consumption breakdown to each net](./img/power_consumption_from_each_net_3_Oct.png)
 
 And here is the power usage breakdown in a single net:
-![Power breakdown in a single net](./img/power_usage_breakdown_inside_one_net_3_Octpower_usage_breakdown_inside_one_net_3_Oct.png)
+![Power breakdown in a single net](./img/power_usage_breakdown_inside_one_net_3_Oct.png)
 
 It could be seen that this design is not really energy efficient with all 20 nets inside with the dynamic power of 396mW.
 
